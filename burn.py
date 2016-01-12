@@ -35,23 +35,19 @@ class NetController(LineReceiver):
         self.gc = gpsController
 
     def lineReceived(self, line):
-        if line == 'start':
-            self.sendLine('server: running session')
-
-            self.sc.stabilize_probe(700, 1, 1)
-            self.sc.create_session(2, 0, 8)
-            self.sc.run_session()
-            #cmd = json.load(line)
-
-            self.sendLine('server: session done')
+        self.sendLine('server: ' + line)
+        #self.sc.stabilize_probe(700, 1, 1)
+        #self.sc.create_session(2, 0, 8)
+        #self.sc.run_session()
+        #cmd = json.load(line)
 
     def connectionMade(self):
         print 'connection made'
-        self.gc.start()
+        #self.gc.start()
 
     def connectionLost(self, reason):
-        print 'connection lost', reason
-        self.gc.stopController()
+        print 'connection lost'
+        #self.gc.stopController()
 
 class NetFactory(Factory):
 

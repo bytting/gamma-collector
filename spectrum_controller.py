@@ -23,6 +23,7 @@ import sys
 import os
 from struct import pack
 from array import array
+import threading
 
 #Setup the Python env
 Utilities.setup()
@@ -34,9 +35,11 @@ from CommandCodes import *
 from ParameterTypes import *
 from PhaData import *
 
-class SpectrumController:
+class SpectrumController(threading.Thread):
 
     def __init__(self):
+        threading.Thread.__init__(self)
+        self.running = False
 
         self.voltage = 0
         self.coarse_gain = 0
@@ -57,7 +60,14 @@ class SpectrumController:
         #Gain ownership
         self.dtb.lock("administrator", "password", self.input)
 
+    def run(self):
+        self.running = True
         self.reset_acquisition()
+        while self.running:
+            time.sleep(.5)
+
+    def stopController(self):
+        self.running = False
 
     def reset_acquisition(self):
 
