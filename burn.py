@@ -1,5 +1,6 @@
+#!/usr/bin/env python2
 # Daemon controlling a Canberra Osprey gamma detector and a Globalsat G-Star IV GPS device.
-# Copyright (C) 2016  Dag Robøle
+# Copyright (C) 2016  Dag Robole
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,14 +16,51 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-#!/usr/bin/python2
-
 import time
 import os
 import sys
 import socket
+
+from twisted.internet import reactor
+from twisted.internet.protocol import Factory
+from twisted.protocols.basic import LineReceiver
+
 from gps_controller import GpsController
 from spectrum_controller import SpectrumController
+
+class NetController(LineReceiver):
+
+    def __init__(self, spectrumController, gpsController):
+        self.sc = spectrumController
+        self.gc = gpsController
+
+    def lineReceived(self, line):
+        if line == 'start':
+            self.sendLine('server: running session')
+
+            self.sc.stabilize_probe(700, 1, 1)
+            self.sc.create_session(2, 0, 8)
+            self.sc.run_session()
+            #cmd = json.load(line)
+
+            self.sendLine('server: session done')
+
+    def connectionMade(self):
+        print 'connection made'
+        self.gc.start()
+
+    def connectionLost(self, reason):
+        print 'connection lost', reason
+        self.gc.stopController()
+
+class NetFactory(Factory):
+
+    def __init__(self, spectrumController, gpsController):
+        self.sc = spectrumController
+        self.gc = gpsController
+
+    def buildProtocol(self, addr):
+        return NetController(self.sc, self.gc)
 
 def main():
 
@@ -45,22 +83,11 @@ def main():
             print "Interface " + iface + " configured successfully"
 
     sc = SpectrumController()
-    sc.stabilize_probe(700, 1, 1)
-    sc.create_session(2, 0, 8)
-    sc.run_session()
+    gc = GpsController()
 
-    #gc = GpsController()
-#    try:
-#        gc.start()
-#        while True:
-#            print gc.utc, " - ", gc.fix.latitude, " - ", gc.fix.longitude
-#            time.sleep(1)
-#    except KeyboardInterrupt:
-#        gc.stopController()
-#        print "Exiting..."
-#    except:
-#        gc.stopController()
-#        print "Error..."
+    LineReceiver.MAX_LENGTH = 1024*1024
+    reactor.listenTCP(7000, NetFactory(sc, gc))
+    reactor.run()
 
 if __name__ == '__main__':
     main()
