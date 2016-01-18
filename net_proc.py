@@ -1,11 +1,6 @@
 from multiprocessing import Process
 from proto import *
-import socket
-import select
-import sys
-import os
-import fcntl
-import logging
+import socket, select, sys, os, fcntl, atexit, logging
 
 HOST = ''
 PORT = 7000
@@ -13,12 +8,11 @@ PORT = 7000
 class NetProc(Process):
 
     def __init__(self, fd):
-
         Process.__init__(self)
         self.fd = fd
         flags = fcntl.fcntl(self.fd, fcntl.F_GETFL)
         fcntl.fcntl(self.fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-        self._running = True
+        self._running = False
         self.conn = None
         self.addr = None
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -32,12 +26,11 @@ class NetProc(Process):
         logging.info('network: server listening')
 
     def run(self):
-
         logging.info('network: starting service')
+        self._running = True
         inputs = [self.fd, self.sock]
 
         while(self._running):
-
             readable, _, _ = select.select(inputs, [], [])
 
             for s in readable:
@@ -53,17 +46,21 @@ class NetProc(Process):
                         self._running = False
                 else:
                     data = s.recv(1024)
-                    self.fd.send(data)
-
-                #inputs.remove(s)
-                #s.close()
-                #del msgq[s]
-                #s = None
-
-        if self.conn is not None:
-            self.conn.close()
-        self.sock.close()
-        logging.info('network: service exiting')
+                    if not data:
+                        inputs.remove(s)
+                        s.close()
+                        s = None
+                    else:
+                        self.fd.send(data)
 
     def is_running(self):
         return self._running
+
+    @atexit.register
+    def terminate(self):
+        logging.info('network: terminating')
+        if self.conn is not None:
+            self.conn.close()
+        if self.sock is not None:
+            self.sock.close()
+

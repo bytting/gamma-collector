@@ -1,29 +1,37 @@
 #!/usr/bin/env python2
+
 from __future__ import print_function
 from multiprocessing import Pipe
 from proto import *
 from gps_proc import GpsProc
 from spec_proc import SpecProc
 from net_proc import NetProc
-import time
 from datetime import datetime
-import sys
-import os
-import fcntl
-import select
-import logging
+import time, sys, os, fcntl, select, atexit, logging
 
 class Burn():
+
     def __init__(self):
+
         #fdg_pass, self.fdg = Pipe()
-        #fds_pass, fds = Pipe()
+        #fds_pass, self.fds = Pipe()
         fdn_pass, self.fdn = Pipe()
+
+        #flags = fcntl.fcntl(self.fdg, fcntl.F_GETFL)
+        #fcntl.fcntl(self.fdg, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+        #flags = fcntl.fcntl(self.fds, fcntl.F_GETFL)
+        #fcntl.fcntl(self.fds, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
         flags = fcntl.fcntl(self.fdn, fcntl.F_GETFL)
         fcntl.fcntl(self.fdn, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
         #self.g = GpsProc(fdg_pass)
-        #s = SpecProc(fds_pass)
+        #self.s = SpecProc(fds_pass)
         self.n = NetProc(fdn_pass)
+
+        #self.g.start()
+        #self.s.start()
         self.n.start()
 
         #fdg_pass.close()
@@ -37,7 +45,7 @@ class Burn():
 
         running = True
         while running:
-            readable, writable, exceptional = select.select([self.fdn], [], [self.fdn])
+            readable, _, exceptional = select.select([self.fdn], [], [self.fdn])
             for s in readable:
                 data = s.recv()
                 if data:
@@ -46,11 +54,17 @@ class Burn():
                         s.send('closing')
                         running = False
 
-        logging.info('main: joining services')
+    @atexit.register
+    def terminate(self):
+        logging.info('main: terminating')
+
+        #self.fdg.close()
+        #self.fds.close()
+        self.fdn.close()
+
         #self.g.join()
-        #s.join()
+        #self.s.join()
         self.n.join()
-        logging.info('main: exiting')
 
 if __name__ == '__main__':
     #try:
@@ -61,4 +75,4 @@ if __name__ == '__main__':
     logging.basicConfig(filename='burn.log', level=logging.DEBUG)
     Burn().run()
     #except Exception as e:
-        #logging.error('main: exception: ' + str(e))
+    #logging.error('main: exception: ' + str(e))
