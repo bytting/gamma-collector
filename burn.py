@@ -1,89 +1,64 @@
 #!/usr/bin/env python2
-# Daemon controlling a Canberra Osprey gamma detector and a Globalsat G-Star IV GPS device.
-# Copyright (C) 2016  Dag Robole
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
+from __future__ import print_function
+from multiprocessing import Pipe
+from proto import *
+from gps_proc import GpsProc
+from spec_proc import SpecProc
+from net_proc import NetProc
 import time
-import os
+from datetime import datetime
 import sys
-import socket
+import os
+import fcntl
+import select
+import logging
 
-from twisted.internet import reactor
-from twisted.internet.protocol import Factory
-from twisted.protocols.basic import LineReceiver
+class Burn():
+    def __init__(self):
+        #fdg_pass, self.fdg = Pipe()
+        #fds_pass, fds = Pipe()
+        fdn_pass, self.fdn = Pipe()
+        flags = fcntl.fcntl(self.fdn, fcntl.F_GETFL)
+        fcntl.fcntl(self.fdn, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
-from gps_controller import GpsController
-from spectrum_controller import SpectrumController
+        #self.g = GpsProc(fdg_pass)
+        #s = SpecProc(fds_pass)
+        self.n = NetProc(fdn_pass)
+        self.n.start()
 
-class NetController(LineReceiver):
+        #fdg_pass.close()
+        #fds_pass.close()
+        fdn_pass.close()
 
-    def __init__(self, spectrumController, gpsController):
-        self.sc = spectrumController
-        self.gc = gpsController
+    def run(self):
 
-    def lineReceived(self, line):
-        self.sendLine('server: ' + line)
-        #self.sc.stabilize_probe(700, 1, 1)
-        #self.sc.create_session(2, 0, 8)
-        #self.sc.run_session()
-        #cmd = json.load(line)
+        #logging.info('main: warming up services')
+        #time.sleep(4)
 
-    def connectionMade(self):
-        print 'connection made'
-        #self.gc.start()
+        running = True
+        while running:
+            readable, writable, exceptional = select.select([self.fdn], [], [self.fdn])
+            for s in readable:
+                data = s.recv()
+                if data:
+                    s.send(data.upper())
+                    if data.startswith('close'):
+                        s.send('closing')
+                        running = False
 
-    def connectionLost(self, reason):
-        print 'connection lost'
-        #self.gc.stopController()
-
-class NetFactory(Factory):
-
-    def __init__(self, spectrumController, gpsController):
-        self.sc = spectrumController
-        self.gc = gpsController
-
-    def buildProtocol(self, addr):
-        return NetController(self.sc, self.gc)
-
-def main():
-
-    if not os.geteuid() == 0:
-        sys.exit('Script must be run as root')
-
-    if len(sys.argv) < 2:
-        sys.exit("Missing arguments")
-
-    iface = sys.argv[-1]
-
-    try:
-        socket.gethostbyaddr("10.0.1.10")
-        print "IP 10.0.1.10 already alive"
-    except socket.herror:
-        ret = os.system("ip addr add 10.0.1.10/24 broadcast 10.0.1.255 dev " + iface)
-        if ret != 0:
-            sys.exit("Unable to set ip address for detector")
-        else:
-            print "Interface " + iface + " configured successfully"
-
-    sc = SpectrumController()
-    gc = GpsController()
-
-    LineReceiver.MAX_LENGTH = 1024*1024
-    reactor.listenTCP(7000, NetFactory(sc, gc))
-    reactor.run()
+        logging.info('main: joining services')
+        #self.g.join()
+        #s.join()
+        self.n.join()
+        logging.info('main: exiting')
 
 if __name__ == '__main__':
-    main()
+    #try:
+    #logpath = os.path.expanduser("/var/log/")
+    #now = datetime.now()
+    #logfile = logpath + 'burn-' + now.strftime("%Y%m%d_%H%M%S") + '.log'
+    #logging.basicConfig(filename=logfile, level=logging.DEBUG)
+    logging.basicConfig(filename='burn.log', level=logging.DEBUG)
+    Burn().run()
+    #except Exception as e:
+        #logging.error('main: exception: ' + str(e))
