@@ -1,6 +1,6 @@
 from multiprocessing import Process
 from proto import *
-import socket, select, sys, os, fcntl, atexit, logging
+import socket, select, sys, os, fcntl, logging
 
 HOST = ''
 PORT = 7000
@@ -53,14 +53,11 @@ class NetProc(Process):
                     else:
                         self.fd.send(data)
 
-    def is_running(self):
-        return self._running
-
-    @atexit.register
-    def terminate(self):
-        logging.info('network: terminating')
         if self.conn is not None:
             self.conn.close()
         if self.sock is not None:
             self.sock.close()
+        logging.info('network: terminating')
 
+    def is_running(self):
+        return self._running

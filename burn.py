@@ -1,18 +1,17 @@
 #!/usr/bin/env python2
 
 from __future__ import print_function
-from multiprocessing import Pipe
 from proto import *
 from gps_proc import GpsProc
 from spec_proc import SpecProc
 from net_proc import NetProc
+from multiprocessing import Pipe
 from datetime import datetime
-import time, sys, os, fcntl, select, atexit, logging
+import time, sys, os, fcntl, select, logging
 
 class Burn():
 
     def __init__(self):
-
         #fdg_pass, self.fdg = Pipe()
         #fds_pass, self.fds = Pipe()
         fdn_pass, self.fdn = Pipe()
@@ -39,11 +38,11 @@ class Burn():
         fdn_pass.close()
 
     def run(self):
+        running = True
 
         #logging.info('main: warming up services')
         #time.sleep(4)
 
-        running = True
         while running:
             readable, _, exceptional = select.select([self.fdn], [], [self.fdn])
             for s in readable:
@@ -54,10 +53,10 @@ class Burn():
                         s.send('closing')
                         running = False
 
-    @atexit.register
-    def terminate(self):
-        logging.info('main: terminating')
+    def __enter__(self):
+        return self
 
+    def __exit__(self, exc_type, exc_value, traceback):
         #self.fdg.close()
         #self.fds.close()
         self.fdn.close()
@@ -66,6 +65,9 @@ class Burn():
         #self.s.join()
         self.n.join()
 
+        logging.info('main: terminating')
+
+
 if __name__ == '__main__':
     #try:
     #logpath = os.path.expanduser("/var/log/")
@@ -73,6 +75,7 @@ if __name__ == '__main__':
     #logfile = logpath + 'burn-' + now.strftime("%Y%m%d_%H%M%S") + '.log'
     #logging.basicConfig(filename=logfile, level=logging.DEBUG)
     logging.basicConfig(filename='burn.log', level=logging.DEBUG)
-    Burn().run()
+    with Burn() as burn:
+        burn.run()
     #except Exception as e:
     #logging.error('main: exception: ' + str(e))
