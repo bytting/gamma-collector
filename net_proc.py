@@ -1,4 +1,5 @@
 from multiprocessing import Process
+from utils import *
 from proto import *
 import json, socket, select, sys, os, fcntl, logging
 
@@ -10,8 +11,7 @@ class NetProc(Process):
     def __init__(self, fd):
         Process.__init__(self)
         self.fd = fd
-        flags = fcntl.fcntl(self.fd, fcntl.F_GETFL)
-        fcntl.fcntl(self.fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        setblocking(self.fd, 0)
         self._running = False
         self.conn = None
         self.addr = None

@@ -7,6 +7,7 @@ from spec_proc import SpecProc
 from net_proc import NetProc
 from multiprocessing import Pipe
 from datetime import datetime
+from utils import *
 import time, sys, os, fcntl, select, logging
 
 class Burn():
@@ -16,14 +17,9 @@ class Burn():
         #fds_pass, self.fds = Pipe()
         fdn_pass, self.fdn = Pipe()
 
-        #flags = fcntl.fcntl(self.fdg, fcntl.F_GETFL)
-        #fcntl.fcntl(self.fdg, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-        #flags = fcntl.fcntl(self.fds, fcntl.F_GETFL)
-        #fcntl.fcntl(self.fds, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-        flags = fcntl.fcntl(self.fdn, fcntl.F_GETFL)
-        fcntl.fcntl(self.fdn, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        #setblocking(self.fdg, 0)
+        #setblocking(self.fds, 0)
+        setblocking(self.fdn, 0)
 
         #self.g = GpsProc(fdg_pass)
         #self.s = SpecProc(fds_pass)
