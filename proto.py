@@ -15,14 +15,21 @@ connection_reg = 'connection_reg'
 connection_close = 'connection_close'
 unknown = 'unknown'
 
-class Command(object):
-    def __init__(self, name='', args=[]):
-        self.name = name
-        self.args = args
+class Request(object):
+    def __init__(self, service='', command='', arguments=[]):
+        self.service = service
+        self.command = command
+        self.arguments = arguments
 
-class Spectrum(Command):
-    def __init__(self):
-        Command.__init__(self, 'spec', [])
+class Response(object):
+    def __init__(self, service='', command='', arguments=[]):
+        self.service = service
+        self.command = command
+        self.arguments = arguments
+
+class Spectrum(Response):
+    def __init__(self, service='', command='', arguments=[]):
+        Response.__init__(self, service, command, arguments)
         self.latitude_start = 0.0
         self.latitude_end = 0.0
         self.longitude_start = 0.0

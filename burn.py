@@ -46,12 +46,17 @@ class Burn():
         while running:
             readable, _, exceptional = select.select([self.fdn], [], [self.fdn])
             for s in readable:
-                data = s.recv()
-                if data:
-                    s.send(data.upper())
-                    if data.startswith('close'):
-                        s.send('closing')
-                        running = False
+                msg = s.recv()
+                if msg:
+                    logging.info('burn got: ' + msg.command)
+                    if msg.service.startswith('controller'):
+                        if msg.command.startswith('ping'):
+                            msg.command = 'pong'
+                            s.send(msg)
+                        if msg.command.startswith('close'):
+                            msg.command = 'closing'
+                            s.send(msg)
+                            running = False
 
     def __enter__(self):
         return self

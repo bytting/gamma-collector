@@ -1,6 +1,6 @@
 from multiprocessing import Process
 from proto import *
-import socket, select, sys, os, fcntl, logging
+import json, socket, select, sys, os, fcntl, logging
 
 HOST = ''
 PORT = 7000
@@ -40,9 +40,11 @@ class NetProc(Process):
                     inputs.append(self.conn)
                     logging.info('connection received')
                 elif s is self.fd:
-                    data = s.recv()
-                    self.conn.send(data)
-                    if data.startswith('closing'):
+                    msg = s.recv()
+                    data = json.dumps(msg.__dict__)
+                    logging.info('network sending: ' + data)
+                    self.conn.send(data + '\n')
+                    if msg.command.startswith('closing'):
                         self._running = False
                 else:
                     data = s.recv(1024)
@@ -51,7 +53,10 @@ class NetProc(Process):
                         s.close()
                         s = None
                     else:
-                        self.fd.send(data)
+                        logging.info('received: ' + data)
+                        jmsg = json.loads(data)
+                        msg = Request(**jmsg)
+                        self.fd.send(msg)
 
         if self.conn is not None:
             self.conn.close()
