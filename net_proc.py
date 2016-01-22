@@ -55,7 +55,7 @@ class NetProc(Process):
                     else:
                         logging.info('received: ' + data)
                         jmsg = json.loads(data)
-                        msg = Request(**jmsg)
+                        msg = Message(**jmsg)
                         self.fd.send(msg)
 
         if self.conn is not None:

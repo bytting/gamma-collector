@@ -13,6 +13,8 @@ import time, sys, os, fcntl, select, logging
 class Burn():
 
     def __init__(self):
+        self.running = False
+
         #fdg_pass, self.fdg = Pipe()
         #fds_pass, self.fds = Pipe()
         fdn_pass, self.fdn = Pipe()
@@ -34,25 +36,34 @@ class Burn():
         fdn_pass.close()
 
     def run(self):
-        running = True
+        self.running = True
 
         #logging.info('main: warming up services')
         #time.sleep(4)
 
-        while running:
+        while self.running:
             readable, _, exceptional = select.select([self.fdn], [], [self.fdn])
             for s in readable:
                 msg = s.recv()
-                if msg:
-                    logging.info('burn got: ' + msg.command)
-                    if msg.service.startswith('controller'):
-                        if msg.command.startswith('ping'):
-                            msg.command = 'pong'
-                            s.send(msg)
-                        if msg.command.startswith('close'):
-                            msg.command = 'closing'
-                            s.send(msg)
-                            running = False
+                logging.info('burn got: ' + msg.command)
+                if s is self.fdn:
+                    logging.info('dispatching net message')
+                    self.dispatch_net_msg(msg)
+
+    def dispatch_net_msg(self, msg):
+        logging.info('dispatching net message 2')
+        if not msg:
+            return
+        if msg.command.startswith('ping'):
+            msg.command = 'pong'
+            self.fdn.send(msg)
+        if msg.command.startswith('close'):
+            msg.command = 'closing'
+            self.fdn.send(msg)
+            self.running = False
+        if msg.command.startswith('new_session'):
+            msg.command = 'session_info'
+            self.fdn.send(msg)
 
     def __enter__(self):
         return self
