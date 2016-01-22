@@ -45,13 +45,10 @@ class Burn():
             readable, _, exceptional = select.select([self.fdn], [], [self.fdn])
             for s in readable:
                 msg = s.recv()
-                logging.info('burn got: ' + msg.command)
                 if s is self.fdn:
-                    logging.info('dispatching net message')
                     self.dispatch_net_msg(msg)
 
     def dispatch_net_msg(self, msg):
-        logging.info('dispatching net message 2')
         if not msg:
             return
         if msg.command.startswith('ping'):
