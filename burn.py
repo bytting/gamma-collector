@@ -8,7 +8,7 @@ from net_proc import NetProc
 from multiprocessing import Pipe
 from datetime import datetime
 from utils import *
-import time, sys, os, fcntl, select, logging
+import time, sys, os, select, logging
 
 class Burn():
 
