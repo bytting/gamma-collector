@@ -6,4 +6,4 @@ Acquisitions and measurements are merged, saved to disk and optionally transferr
 Dependencies:
 - Canberra Osprey SDK V1.0.1
 
-This software is part of the NORDUM drone project at Norwegian Radiation Protection Authority (NRPA)
+This software is part of a drone project at Norwegian Radiation Protection Authority (NRPA)
