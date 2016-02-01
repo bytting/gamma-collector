@@ -46,7 +46,7 @@ class NetProc(Process):
                     netstring = struct.pack("!I", len(data))
                     netstring += data
                     self.conn.send(netstring)
-                    if msg.command.startswith('closing'):
+                    if msg.command == 'close_ok':
                         self._running = False
                 else:
                     data = s.recv(1024)

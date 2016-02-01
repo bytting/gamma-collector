@@ -51,15 +51,16 @@ class Burn():
     def dispatch_net_msg(self, msg):
         if not msg:
             return
-        if msg.command.startswith('ping'):
-            msg.command = 'pong'
+        if msg.command == 'ping':
+            msg.command = 'ping_ok'
             self.fdn.send(msg)
-        if msg.command.startswith('close'):
-            msg.command = 'closing'
+        if msg.command == 'close':
+            msg.command = 'close_ok'
             self.fdn.send(msg)
             self.running = False
-        if msg.command.startswith('new_session'):
-            msg.command = 'session_info'
+        if msg.command == 'new_session':
+            msg.command = 'new_session_ok'
+            msg.arguments["session_name"] = 'session1'
             self.fdn.send(msg)
 
     def __enter__(self):
