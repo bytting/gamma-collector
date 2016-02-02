@@ -39,6 +39,7 @@ class NetProc(Process):
                     self.conn, self.addr = s.accept()
                     self.conn.setblocking(0)
                     inputs.append(self.conn)
+                    self.buffer = ''
                     logging.info('connection received')
                 elif s is self.fd:
                     msg = s.recv()
