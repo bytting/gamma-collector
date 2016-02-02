@@ -50,10 +50,11 @@ class NetProc(Process):
                         self._running = False
                 else:
                     data = s.recv(1024)
-                    if not data:
+                    if not data or data == '':
                         inputs.remove(s)
                         s.close()
-                        s = None
+                        self.buffer = ''
+                        logging.info('network: connection lost')
                     else:
                         self.buffer += data
                         self.dispatch_msg()
@@ -67,7 +68,6 @@ class NetProc(Process):
     def dispatch_msg(self):
         while True:
             if len(self.buffer) < 4:
-                logging.info('network: buffer < 4')
                 return
             msglen = struct.unpack("!I", self.buffer[0:4])[0]
             if len(self.buffer) < msglen+4:

@@ -15,23 +15,23 @@ class Burn():
     def __init__(self):
         self.running = False
 
-        #fdg_pass, self.fdg = Pipe()
+        fdg_pass, self.fdg = Pipe()
         #fds_pass, self.fds = Pipe()
         fdn_pass, self.fdn = Pipe()
 
-        #setblocking(self.fdg, 0)
+        setblocking(self.fdg, 0)
         #setblocking(self.fds, 0)
         setblocking(self.fdn, 0)
 
-        #self.g = GpsProc(fdg_pass)
+        self.g = GpsProc(fdg_pass)
         #self.s = SpecProc(fds_pass)
         self.n = NetProc(fdn_pass)
 
-        #self.g.start()
+        self.g.start()
         #self.s.start()
         self.n.start()
 
-        #fdg_pass.close()
+        fdg_pass.close()
         #fds_pass.close()
         fdn_pass.close()
 
@@ -40,13 +40,16 @@ class Burn():
 
         #logging.info('main: warming up services')
         #time.sleep(4)
+        inputs = [self.fdn, self.fdg]
 
         while self.running:
-            readable, _, exceptional = select.select([self.fdn], [], [self.fdn])
+            readable, _, exceptional = select.select(inputs, [], inputs)
             for s in readable:
                 msg = s.recv()
                 if s is self.fdn:
                     self.dispatch_net_msg(msg)
+                elif s is self.fdg:
+                    self.dispatch_gps_msg(msg)
 
     def dispatch_net_msg(self, msg):
         if not msg:
@@ -54,29 +57,34 @@ class Burn():
         if msg.command == 'ping':
             msg.command = 'ping_ok'
             self.fdn.send(msg)
-        if msg.command == 'close':
+        elif msg.command == 'close':
+            self.fdg.send(msg)
             msg.command = 'close_ok'
             self.fdn.send(msg)
             self.running = False
-        if msg.command == 'new_session':
+        elif msg.command == 'new_session':
             msg.command = 'new_session_ok'
             msg.arguments["session_name"] = 'session1'
             self.fdn.send(msg)
+        elif msg.command == 'fix':
+            self.fdg.send(msg)
+
+    def dispatch_gps_msg(self, msg):
+        self.fdn.send(msg)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        #self.fdg.close()
+        self.fdg.close()
         #self.fds.close()
         self.fdn.close()
 
-        #self.g.join()
+        self.g.join()
         #self.s.join()
         self.n.join()
 
         logging.info('main: terminating')
-
 
 if __name__ == '__main__':
     #try:
