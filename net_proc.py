@@ -1,5 +1,5 @@
 from multiprocessing import Process
-from utils import *
+from helpers import *
 from proto import *
 import struct, json, socket, select, sys, os, logging
 

@@ -29,7 +29,7 @@ class GpsProc(Process):
             while self.fd.poll():
                 self.dispatch(self.fd.recv())
 
-        logging.info('gpsd: service exiting')
+        logging.info('gpsd: terminating')
 
     def dispatch(self, msg):
         if msg.command == 'fix':

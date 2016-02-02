@@ -7,7 +7,7 @@ from spec_proc import SpecProc
 from net_proc import NetProc
 from multiprocessing import Pipe
 from datetime import datetime
-from utils import *
+from helpers import *
 import time, sys, os, select, logging
 
 class Burn():
