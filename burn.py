@@ -16,31 +16,32 @@ class Burn():
         self.running = False
 
         fdg_pass, self.fdg = Pipe()
-        #fds_pass, self.fds = Pipe()
+        fds_pass, self.fds = Pipe()
         fdn_pass, self.fdn = Pipe()
 
         setblocking(self.fdg, 0)
-        #setblocking(self.fds, 0)
+        setblocking(self.fds, 0)
         setblocking(self.fdn, 0)
 
         self.g = GpsProc(fdg_pass)
-        #self.s = SpecProc(fds_pass)
+        self.s = SpecProc(fds_pass)
         self.n = NetProc(fdn_pass)
 
         self.g.start()
-        #self.s.start()
+        self.s.start()
         self.n.start()
 
         fdg_pass.close()
-        #fds_pass.close()
+        fds_pass.close()
         fdn_pass.close()
 
     def run(self):
         self.running = True
 
-        #logging.info('main: warming up services')
-        #time.sleep(4)
-        inputs = [self.fdn, self.fdg]
+        logging.info('main: warming up services')
+        time.sleep(4)
+
+        inputs = [self.fdn, self.fdg, self.fds]
 
         while self.running:
             readable, _, exceptional = select.select(inputs, [], inputs)
@@ -50,6 +51,8 @@ class Burn():
                     self.dispatch_net_msg(msg)
                 elif s is self.fdg:
                     self.dispatch_gps_msg(msg)
+                elif s is self.fds:
+                    self.dispatch_spec_msg(msg)
 
     def dispatch_net_msg(self, msg):
         if not msg:
@@ -59,6 +62,7 @@ class Burn():
             self.fdn.send(msg)
         elif msg.command == 'close':
             self.fdg.send(msg)
+            self.fds.send(msg)
             msg.command = 'close_ok'
             self.fdn.send(msg)
             self.running = False
@@ -66,10 +70,17 @@ class Burn():
             msg.command = 'new_session_ok'
             msg.arguments["session_name"] = 'session1'
             self.fdn.send(msg)
-        elif msg.command == 'fix':
+        elif msg.command == 'get_fix':
             self.fdg.send(msg)
+        elif msg.command == 'set_gain':
+            self.fds.send(msg)
+        elif msg.command == 'get_preview_spec':
+            self.fds.send(msg)
 
     def dispatch_gps_msg(self, msg):
+        self.fdn.send(msg)
+
+    def dispatch_spec_msg(self, msg):
         self.fdn.send(msg)
 
     def __enter__(self):
@@ -77,11 +88,11 @@ class Burn():
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.fdg.close()
-        #self.fds.close()
+        self.fds.close()
         self.fdn.close()
 
         self.g.join()
-        #self.s.join()
+        self.s.join()
         self.n.join()
 
         logging.info('main: terminating')

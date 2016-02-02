@@ -32,8 +32,8 @@ class GpsProc(Process):
         logging.info('gpsd: terminating')
 
     def dispatch(self, msg):
-        if msg.command == 'fix':
-            msg.command = 'fix_ok'
+        if msg.command == 'get_fix':
+            msg.command = 'get_fix_ok'
             msg.arguments["latitude"] = self.last_lat
             msg.arguments["longitude"] = self.last_lon
             msg.arguments["altitude"] = self.last_alt
