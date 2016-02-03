@@ -10,6 +10,9 @@ PORT = 7000
 class NetProc(Process):
 
     def __init__(self, fd):
+        """
+        Initialization of the net process
+        """
         Process.__init__(self)
         self.fd = fd
         setblocking(self.fd, 0)
@@ -28,27 +31,36 @@ class NetProc(Process):
         logging.info('network: service listening')
 
     def run(self):
+        """
+        Entry point for the net process
+        """
         logging.info('network: starting service')
         self._running = True
+        # Prepare sockets and file descriptors
         inputs = [self.fd, self.sock]
 
+        # Start select event loop
         while(self._running):
             readable, _, _ = select.select(inputs, [], [])
 
+            # Handle reads
             for s in readable:
+
                 if s is self.sock:
+                    # Incoming connection on listening socket
+                    # We only allow one connection at a time (TODO)
                     self.conn, self.addr = s.accept()
                     self.conn.setblocking(0)
                     inputs.append(self.conn)
                     self.buffer = ''
                     logging.info('connection received')
+
                 elif s is self.fd:
+                    # Incoming message from main controller
                     msg = s.recv()
                     data = json.dumps(msg.__dict__)
-                    netstring = struct.pack("!I", len(data))
-                    netstring += data
-                    totlen = len(netstring)
-                    currlen = 0
+                    netstring = struct.pack("!I", len(data)) + data
+                    totlen, currlen = len(netstring), 0
                     while True:
                         l = self.conn.send(netstring[currlen:])
                         if l == 0:
@@ -57,9 +69,12 @@ class NetProc(Process):
                         currlen += l
                         if currlen >= totlen:
                             break
+
                     if msg.command == 'close_ok':
                         self._running = False
+
                 else:
+                    # Incoming data from existing connection
                     try:
                         data = s.recv(1024)
                     except socket_error as e:
@@ -81,12 +96,13 @@ class NetProc(Process):
         logging.info('network: terminating')
 
     def extinguish_conn(self, inputs):
+        # Connection was lost abruptly, remove it from select descriptors and close
         inputs.remove(self.conn)
         self.conn.close()
-        self.buffer = ''
         logging.info('network: connection lost')
 
     def dispatch_msg(self):
+        # Convert received data to messages and pass them on to main controller
         while True:
             if len(self.buffer) < 4:
                 return
@@ -101,4 +117,5 @@ class NetProc(Process):
             self.buffer = self.buffer[4+msglen:]
 
     def is_running(self):
+        # Return wether the net process is still running
         return self._running
