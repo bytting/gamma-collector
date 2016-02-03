@@ -1,7 +1,8 @@
 from multiprocessing import Process
 from helpers import *
 from proto import *
-import struct, json, socket, select, sys, os, logging
+from socket import error as SocketError
+import struct, json, socket, select, sys, os, logging, errno
 
 HOST = ''
 PORT = 7000
@@ -50,13 +51,27 @@ class NetProc(Process):
                     currlen = 0
                     while True:
                         l = self.conn.send(netstring[currlen:])
+                        if l == 0:
+                            inputs.remove(self.conn)
+                            self.conn.close()
+                            self.buffer = ''
+                            logging.info('network: connection lost 3')
                         currlen += l
                         if currlen >= totlen:
                             break
                     if msg.command == 'close_ok':
                         self._running = False
                 else:
-                    data = s.recv(1024)
+                    try:
+                        data = s.recv(1024)
+                    except SocketError as e:
+                        if e.errno != errno.ECONNRESET:
+                            raise
+                        inputs.remove(s)
+                        s.close()
+                        self.buffer = ''
+                        logging.info('network: connection lost 2')
+                        continue
                     if not data or data == '':
                         inputs.remove(s)
                         s.close()
