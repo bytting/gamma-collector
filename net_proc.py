@@ -1,7 +1,7 @@
 from multiprocessing import Process
 from helpers import *
 from proto import *
-from socket import error as SocketError
+from socket import error as socket_error
 import struct, json, socket, select, sys, os, logging, errno
 
 HOST = ''
@@ -52,10 +52,8 @@ class NetProc(Process):
                     while True:
                         l = self.conn.send(netstring[currlen:])
                         if l == 0:
-                            inputs.remove(self.conn)
-                            self.conn.close()
-                            self.buffer = ''
-                            logging.info('network: connection lost 3')
+                            self.extinguish_conn(inputs)
+                            break
                         currlen += l
                         if currlen >= totlen:
                             break
@@ -64,19 +62,14 @@ class NetProc(Process):
                 else:
                     try:
                         data = s.recv(1024)
-                    except SocketError as e:
+                    except socket_error as e:
                         if e.errno != errno.ECONNRESET:
                             raise
-                        inputs.remove(s)
-                        s.close()
-                        self.buffer = ''
-                        logging.info('network: connection lost 2')
+                        self.extinguish_conn(inputs)
                         continue
                     if not data or data == '':
-                        inputs.remove(s)
-                        s.close()
-                        self.buffer = ''
-                        logging.info('network: connection lost')
+                        self.extinguish_conn(inputs)
+                        continue
                     else:
                         self.buffer += data
                         self.dispatch_msg()
@@ -86,6 +79,12 @@ class NetProc(Process):
         if self.sock is not None:
             self.sock.close()
         logging.info('network: terminating')
+
+    def extinguish_conn(self, inputs):
+        inputs.remove(self.conn)
+        self.conn.close()
+        self.buffer = ''
+        logging.info('network: connection lost')
 
     def dispatch_msg(self):
         while True:
