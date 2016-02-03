@@ -9,13 +9,15 @@ class GpsProc(Process):
         Process.__init__(self)
         self.fd = fd
         self.gpsd = gps(mode=WATCH_ENABLE)
-        self.last_lat = None
-        self.last_lon = None
-        self.last_alt = None
-        self._running = True
+        self.last_lat = 0
+        self.last_lon = 0
+        self.last_alt = 0
+        self._running = False
 
     def run(self):
+        self._running = True
         logging.info('gpsd: starting service')
+
         while self._running:
             while self.gpsd.waiting():
                 self.gpsd.next()

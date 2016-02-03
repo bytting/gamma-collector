@@ -46,7 +46,13 @@ class NetProc(Process):
                     data = json.dumps(msg.__dict__)
                     netstring = struct.pack("!I", len(data))
                     netstring += data
-                    self.conn.send(netstring)
+                    totlen = len(netstring)
+                    currlen = 0
+                    while True:
+                        l = self.conn.send(netstring[currlen:])
+                        currlen += l
+                        if currlen >= totlen:
+                            break
                     if msg.command == 'close_ok':
                         self._running = False
                 else:
