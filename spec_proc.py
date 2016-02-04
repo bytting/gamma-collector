@@ -26,7 +26,7 @@ class SpecProc(Process):
         self.input = 1
         self.dtb = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
         self.dtb.open("", Utilities.getLynxAddress())
-        logging.info('spec: using sevice ' + self.dtb.getParameter(ParameterCodes.Network_MachineName, 0))
+        logging.info('spec: using device ' + self.dtb.getParameter(ParameterCodes.Network_MachineName, 0))
         self.dtb.lock("administrator", "password", self.input)
 
     def run(self):
