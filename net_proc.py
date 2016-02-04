@@ -78,7 +78,7 @@ class NetProc(Process):
                         if e.errno == errno.ECONNRESET:
                             inputs.remove(s)
                             s.close()
-                        logging.error('network: ' + self.sddr[0] + ': ' + os.strerror(e.errno))
+                        logging.error('network: ' + self.addr[0] + ': ' + os.strerror(e.errno))
                         continue
                     if not data or data == '':
                         inputs.remove(s)
