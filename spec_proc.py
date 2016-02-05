@@ -13,7 +13,9 @@
 #
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.from multiprocessing import Process
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+from multiprocessing import Process
 from proto import *
 import logging
 from datetime import datetime
