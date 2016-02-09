@@ -114,6 +114,7 @@ class NetProc(Process):
             self.conn.close()
         if self.sock is not None:
             self.sock.close()
+        self.fd.close()
 
         logging.info('network: terminating')
 

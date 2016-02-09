@@ -54,6 +54,8 @@ class SpecProc(Process):
         while(self.running):
             if self.fd.poll():
                 self.dispatch(self.fd.recv())
+
+        self.fd.close()
         logging.info('spec: terminating')
 
     def dispatch(self, msg):

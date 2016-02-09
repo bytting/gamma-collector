@@ -50,6 +50,7 @@ class GpsProc(Process):
             while self.fd.poll():
                 self.dispatch(self.fd.recv())
 
+        self.fd.close()
         logging.info('gpsd: terminating')
 
     def dispatch(self, msg):
