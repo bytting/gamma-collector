@@ -1,0 +1,4 @@
+Only allow one connected client
+
+Handle messages bigger than the pipe buffer size
+
