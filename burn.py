@@ -32,6 +32,7 @@ class Burn():
 
     def __init__(self):
         self.running = False
+        self.session_dir = ''
 
         fdg_pass, self.fdg = Pipe()
         fds_pass, self.fds = Pipe()
@@ -85,14 +86,10 @@ class Burn():
             self.fdn.send(msg)
             self.running = False
         elif msg.command == 'new_session':
-            msg.command = 'new_session_ok'
-            msg.arguments["session_name"] = 'session1'
-            self.fdn.send(msg)
+            self.fds.send(msg)
         elif msg.command == 'get_fix':
             self.fdg.send(msg)
         elif msg.command == 'set_gain':
-            self.fds.send(msg)
-        elif msg.command == 'get_preview_spec':
             self.fds.send(msg)
 
     def dispatch_gps_msg(self, msg):

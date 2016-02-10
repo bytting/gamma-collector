@@ -15,7 +15,7 @@ def setup():
     Return:
         none
     """
-    toolkitPath = os.getcwd() + os.path.sep + "osprey"
+    toolkitPath = os.getcwd() + os.path.sep + "../osprey"
     sys.path.append(toolkitPath)
     
 def readLine(txt):

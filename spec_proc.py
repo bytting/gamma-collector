@@ -19,12 +19,8 @@
 
 from multiprocessing import Process
 from proto import *
-import logging
 from datetime import datetime
-import time
-import socket
-import sys
-import os
+import os, sys, time, socket, threading, logging
 import Utilities
 
 Utilities.setup()
@@ -35,12 +31,32 @@ from CommandCodes import *
 from ParameterTypes import *
 from PhaData import *
 
+class SessionThread(threading.Thread):
+    def __init__(self, event, target, *args):
+        threading.Thread.__init__(self)
+        self._stopped = event
+        self._target = target
+        self._args = args
+        self.iterations = 0
+        self.delay = 0
+
+    def run(self):
+        while not self._stopped.wait(self.delay):
+            self.iterations = self.iterations - 1
+            if self.iterations < 0:
+                break
+            logging.info('running once')
+            self._target(*self._args)
+            logging.info('running once done')
+
 class SpecProc(Process):
     def __init__(self, fd):
         Process.__init__(self)
         self.fd = fd
         self.running = False
-        self.source_dir = ""
+        self.session_dir = ''
+        self.session_stop = threading.Event()
+        self.session = SessionThread(self.session_stop, self.session_run_once)
         self.group = 1
         self.input = 1
         self.dtb = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
@@ -55,6 +71,7 @@ class SpecProc(Process):
             if self.fd.poll():
                 self.dispatch(self.fd.recv())
 
+        self.session.join()
         self.fd.close()
         logging.info('spec: terminating')
 
@@ -69,25 +86,28 @@ class SpecProc(Process):
             self.fd.send(msg)
         elif msg.command == 'close':
             self.running = False
-        elif msg.command == 'get_preview_spec':
-            self.reset_acquisition()
-            self.run_preview(msg)
-            msg.command = 'get_preview_spec_ok'
+        elif msg.command == 'new_session':
+            self.session_name = msg.arguments['session_name']
+            self.session_dir = os.path.expanduser("~/ashes/") + self.session_name
+            os.makedirs(self.session_dir, 0777)
+            logging.info('new session dir: ' + self.session_dir)
+            msg.command = 'new_session_ok'
             self.fd.send(msg)
+
+            self.livetime = int(msg.arguments['livetime'])
+            self.session.iterations = int(msg.arguments['iterations'])
+            self.session.delay = float(msg.arguments['delay'])
+            self.session.start()
         else:
             logging.warning('spec: unknown command ' + cmd.command)
 
-    def reset_acquisition(self):
-        #Disable all acquisition
-        Utilities.disableAcquisition(self.dtb, self.input)
-        #Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
-        self.dtb.setParameter(ParameterCodes.Input_Mode, 0, self.input)
-        #Setup presets
-        self.dtb.setParameter(ParameterCodes.Preset_Options, 1, self.input)
-        #Clear data and time
-        self.dtb.control(CommandCodes.Clear, self.input)
-        #Set the current memory group
-        self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
+    def session_run_once(self):
+        msg = Message(command='get_spectrum_ok')
+        msg.arguments['session_name'] = self.session_name
+        msg.arguments['livetime'] = self.livetime
+        self.reset_acquisition()
+        self.run_acquisition(msg)
+        self.fd.send(msg)
 
     def stabilize_probe(self, voltage, coarse_gain, fine_gain):
         # Turn on HV
@@ -106,8 +126,20 @@ class SpecProc(Process):
         self.dtb.setParameter(ParameterCodes.Input_CoarseGain, float(coarse_gain), self.input) # [1.0, 2.0, 4.0, 8.0]
         self.dtb.setParameter(ParameterCodes.Input_FineGain, float(fine_gain), self.input) # [1.0, 5.0]
 
-    def run_preview(self, msg):
-        livetime = msg.arguments["livetime"]
+    def reset_acquisition(self):
+        #Disable all acquisition
+        Utilities.disableAcquisition(self.dtb, self.input)
+        #Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
+        self.dtb.setParameter(ParameterCodes.Input_Mode, 0, self.input)
+        #Setup presets
+        self.dtb.setParameter(ParameterCodes.Preset_Options, 1, self.input)
+        #Clear data and time
+        self.dtb.control(CommandCodes.Clear, self.input)
+        #Set the current memory group
+        self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
+
+    def run_acquisition(self, msg):
+        livetime = int(msg.arguments["livetime"])
         # Setup presets
         self.dtb.setParameter(ParameterCodes.Preset_Live, float(livetime), self.input)
         # Clear data and time
@@ -136,18 +168,6 @@ class SpecProc(Process):
         msg.arguments["status"] = Utilities.getStatusDescription(sd.getStatus())
         """print "Input: %d; Group: %d"%(sd.getInput(), sd.getGroup())"""
         #self.save(sd, i)
-
-#    def create_session(self, acquisition_interval, acquisition_spacing, acquisition_count):
-#        self.acquisition_interval = acquisition_interval
-#        self.acquisition_spacing = acquisition_spacing
-#        self.acquisition_count = acquisition_count
-#
-#        now = datetime.now()
-#        self.source_dir = os.path.expanduser("/tmp/ashes/") + now.strftime("%Y%m%d_%H%M%S")
-#        os.makedirs(self.source_dir, 0777)
-#        print self.source_dir
-#        #Set the current memory group
-#        self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
 
 #    def save(self, sd, idx):
 #        chans = sd.getSpectrum().getCounts()
