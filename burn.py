@@ -87,6 +87,8 @@ class Burn():
             self.running = False
         elif msg.command == 'new_session':
             self.fds.send(msg)
+        elif msg.command == 'stop_session':
+            self.fds.send(msg)
         elif msg.command == 'get_fix':
             self.fdg.send(msg)
         elif msg.command == 'set_gain':

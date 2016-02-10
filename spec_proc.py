@@ -103,6 +103,7 @@ class SpecProc(Process):
             if not self.session_stop.isSet():
                 self.session_stop.set()
                 self.session.join()
+                logging.info('session stopped')
             msg.command = 'stop_session_ok'
             self.fd.send(msg)
         else:
@@ -146,9 +147,9 @@ class SpecProc(Process):
         self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
 
     def run_acquisition(self, msg):
-        livetime = int(msg.arguments["livetime"])
+        livetime = float(msg.arguments["livetime"])
         # Setup presets
-        self.dtb.setParameter(ParameterCodes.Preset_Live, float(livetime), self.input)
+        self.dtb.setParameter(ParameterCodes.Preset_Live, livetime, self.input)
         # Clear data and time
         self.dtb.control(CommandCodes.Clear, self.input)
         # Start the acquisition
