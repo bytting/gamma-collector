@@ -32,21 +32,22 @@ from ParameterTypes import *
 from PhaData import *
 
 class SessionThread(threading.Thread):
-    def __init__(self, event, target, *args):
+    def __init__(self, event, target, session_name, iterations, delay, livetime):
         threading.Thread.__init__(self)
         self._stopped = event
         self._target = target
-        self._args = args
-        self.iterations = 0
-        self.delay = 0
+        self._session_name = session_name
+        self._iterations = iterations
+        self._delay = delay
+        self._livetime = livetime
 
     def run(self):
-        while not self._stopped.wait(self.delay):
-            self.iterations = self.iterations - 1
-            if self.iterations < 0:
+        while not self._stopped.wait(self._delay):
+            self._iterations = self._iterations - 1
+            if self._iterations < 0:
                 break
             logging.info('running once')
-            self._target(*self._args)
+            self._target(self._session_name, self._livetime)
             logging.info('running once done')
 
 class SpecProc(Process):
@@ -54,9 +55,6 @@ class SpecProc(Process):
         Process.__init__(self)
         self.fd = fd
         self.running = False
-        self.session_dir = ''
-        self.session_stop = threading.Event()
-        self.session = SessionThread(self.session_stop, self.session_run_once)
         self.group = 1
         self.input = 1
         self.dtb = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
@@ -71,7 +69,6 @@ class SpecProc(Process):
             if self.fd.poll():
                 self.dispatch(self.fd.recv())
 
-        self.session.join()
         self.fd.close()
         logging.info('spec: terminating')
 
@@ -91,20 +88,30 @@ class SpecProc(Process):
             self.session_dir = os.path.expanduser("~/ashes/") + self.session_name
             os.makedirs(self.session_dir, 0777)
             logging.info('new session dir: ' + self.session_dir)
+            self.session_stop = threading.Event()
+            self.session = SessionThread(
+                    self.session_stop,
+                    self.session_run_once,
+                    self.session_name,
+                    int(msg.arguments['iterations']),
+                    float(msg.arguments['delay']),
+                    float(msg.arguments['livetime']))
             msg.command = 'new_session_ok'
             self.fd.send(msg)
-
-            self.livetime = int(msg.arguments['livetime'])
-            self.session.iterations = int(msg.arguments['iterations'])
-            self.session.delay = float(msg.arguments['delay'])
             self.session.start()
+        elif msg.command == 'stop_session':
+            if not self.session_stop.isSet():
+                self.session_stop.set()
+                self.session.join()
+            msg.command = 'stop_session_ok'
+            self.fd.send(msg)
         else:
             logging.warning('spec: unknown command ' + cmd.command)
 
-    def session_run_once(self):
+    def session_run_once(self, session_name, livetime):
         msg = Message(command='get_spectrum_ok')
-        msg.arguments['session_name'] = self.session_name
-        msg.arguments['livetime'] = self.livetime
+        msg.arguments['session_name'] = session_name
+        msg.arguments['livetime'] = livetime
         self.reset_acquisition()
         self.run_acquisition(msg)
         self.fd.send(msg)
