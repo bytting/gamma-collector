@@ -21,6 +21,8 @@ from multiprocessing import Process
 from proto import *
 from gps import *
 from datetime import datetime
+from struct import pack
+from array import array
 import os, sys, math, copy, time, socket, threading, logging
 import Utilities
 
@@ -80,11 +82,15 @@ class SessionThread(threading.Thread):
         logging.info('session: starting')
         delay = float(self._msg.arguments["delay"])
         iterations = int(self._msg.arguments["iterations"])
+        infinite = iterations == -1
+        index = 0
         while not self._stopped.wait(delay):
-            iterations = iterations - 1
-            if iterations < 0:
-                break
-            self._target(self._msg)
+            if not infinite:
+                iterations = iterations - 1
+                if iterations < 0:
+                    break
+            self._target(self._msg, index)
+            index = index + 1
 
         logging.info('session: terminating')
 
@@ -172,14 +178,14 @@ class SpecProc(Process):
         self.dtb.setParameter(ParameterCodes.Input_CoarseGain, float(coarse_gain), self.input) # [1.0, 2.0, 4.0, 8.0]
         self.dtb.setParameter(ParameterCodes.Input_FineGain, float(fine_gain), self.input) # [1.0, 5.0]
 
-    def run_acquisition_once(self, req_msg):
+    def run_acquisition_once(self, req_msg, session_index):
         resp_msg = copy.deepcopy(req_msg)
         resp_msg.command = 'get_spectrum_ok'
         self.reset_acquisition()
         resp_msg.arguments['latitude_start'] = self.gps_client.latitude
         resp_msg.arguments['longitude_start'] = self.gps_client.longitude
         resp_msg.arguments['altitude_start'] = self.gps_client.altitude
-        self.run_acquisition(resp_msg)
+        self.run_acquisition(resp_msg, session_index)
         resp_msg.arguments['latitude_end'] = self.gps_client.latitude
         resp_msg.arguments['longitude_end'] = self.gps_client.longitude
         resp_msg.arguments['altitude_end'] = self.gps_client.altitude
@@ -197,7 +203,7 @@ class SpecProc(Process):
         #Set the current memory group
         self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
 
-    def run_acquisition(self, msg):
+    def run_acquisition(self, msg, session_index):
         livetime = float(msg.arguments["livetime"])
         # Setup presets
         self.dtb.setParameter(ParameterCodes.Preset_Live, livetime, self.input)
@@ -226,18 +232,18 @@ class SpecProc(Process):
         msg.arguments["computational_limit"] = sd.getComputationalValue()
         msg.arguments["status"] = Utilities.getStatusDescription(sd.getStatus())
         """print "Input: %d; Group: %d"%(sd.getInput(), sd.getGroup())"""
-        #self.save(sd, i)
+        self.save_acquisition(sd, msg, session_index)
 
-#    def save(self, sd, idx):
-        #self.session_name = msg.arguments['session_name']
-        #self.session_dir = os.path.expanduser("~/ashes/") + self.session_name
-        #os.makedirs(self.session_dir, 0777)
-        #logging.info('new session dir: ' + self.session_dir)
-#        chans = sd.getSpectrum().getCounts()
-#        mca, sec, rt, lt, dat, tim, off, nc = 1, 0, sd.getRealTime(), sd.getLiveTime(), "07DEC151", "0707", 0, len(chans) # FIXME
-#        hdr = pack("hhhhii8s4shh", -1, mca, 1, sec, rt, lt, dat, tim, off, nc)
-#        with open(self.source_dir + os.path.sep + str(idx) + ".chn", "w+b") as f:
-#            f.write(hdr)
-#            int_array = array('L', chans)
-#            int_array.tofile(f)
-#            f.close()
+    def save_acquisition(self, sd, msg, session_index):
+        session_name = msg.arguments['session_name']
+        session_dir = os.path.expanduser("~/ashes/") + session_name
+        if not os.path.isdir(session_dir):
+            os.makedirs(session_dir, 0777)
+        chans = sd.getSpectrum().getCounts()
+        mca, sec, rt, lt, dat, tim, off, nc = 1, 0, sd.getRealTime(), sd.getLiveTime(), "07DEC151", "0707", 0, len(chans) # FIXME
+        hdr = pack("hhhhii8s4shh", -1, mca, 1, sec, rt, lt, dat, tim, off, nc)
+        with open(session_dir + os.path.sep + str(session_index) + ".chn", "w+b") as f:
+            f.write(hdr)
+            int_array = array('L', chans)
+            int_array.tofile(f)
+            f.close()
