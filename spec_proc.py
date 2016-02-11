@@ -181,6 +181,7 @@ class SpecProc(Process):
     def run_acquisition_once(self, req_msg, session_index):
         resp_msg = copy.deepcopy(req_msg)
         resp_msg.command = 'get_spectrum_ok'
+        resp_msg.arguments['session_index'] = session_index
         self.reset_acquisition()
         resp_msg.arguments['latitude_start'] = self.gps_client.latitude
         resp_msg.arguments['longitude_start'] = self.gps_client.longitude
