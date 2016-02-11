@@ -21,7 +21,7 @@ from multiprocessing import Process
 from proto import *
 from gps import *
 from datetime import datetime
-import os, sys, math, time, socket, threading, logging
+import os, sys, math, copy, time, socket, threading, logging
 import Utilities
 
 Utilities.setup()
@@ -45,7 +45,7 @@ class GpsThread(threading.Thread):
     def run(self):
         logging.info('gps: starting service')
 
-        while not self._stopped.wait(0.5):
+        while not self._stopped.wait(0.3):
             while self.gpsd.waiting():
                 self.gpsd.next()
                 if not math.isnan(self.gpsd.fix.latitude):
@@ -70,25 +70,21 @@ class GpsThread(threading.Thread):
         return self.last_alt
 
 class SessionThread(threading.Thread):
-    def __init__(self, event, target, session_name, iterations, delay, livetime):
+    def __init__(self, event, target, msg):
         threading.Thread.__init__(self)
         self._stopped = event
         self._target = target
-        self._session_name = session_name
-        self._iterations = iterations
-        self._delay = delay
-        self._livetime = livetime
+        self._msg = msg
 
     def run(self):
         logging.info('session: starting')
-
-        while not self._stopped.wait(self._delay):
-            self._iterations = self._iterations - 1
-            if self._iterations < 0:
+        delay = float(self._msg.arguments["delay"])
+        iterations = int(self._msg.arguments["iterations"])
+        while not self._stopped.wait(delay):
+            iterations = iterations - 1
+            if iterations < 0:
                 break
-            logging.info('session: running once')
-            self._target(self._session_name, self._livetime)
-            logging.info('session: running once done')
+            self._target(self._msg)
 
         logging.info('session: terminating')
 
@@ -118,9 +114,6 @@ class SpecProc(Process):
                 self.dispatch(self.fd.recv())
 
         self.fd.close()
-        #self.session_stop.set()
-        #self.session.join()
-        #logging.info('spec: session stopped')
         self.gps_stop.set()
         self.gps_client.join()
         logging.info('spec: GPS client stopped')
@@ -148,20 +141,10 @@ class SpecProc(Process):
         elif msg.command == 'close':
             self.running = False
         elif msg.command == 'new_session':
-            self.session_name = msg.arguments['session_name']
-            self.session_dir = os.path.expanduser("~/ashes/") + self.session_name
-            os.makedirs(self.session_dir, 0777)
-            logging.info('new session dir: ' + self.session_dir)
-            self.session_stop = threading.Event()
-            self.session = SessionThread(
-                    self.session_stop,
-                    self.session_run_once,
-                    self.session_name,
-                    int(msg.arguments['iterations']),
-                    float(msg.arguments['delay']),
-                    float(msg.arguments['livetime']))
             msg.command = 'new_session_ok'
             self.send_msg(msg)
+            self.session_stop = threading.Event()
+            self.session = SessionThread(self.session_stop, self.run_acquisition_once, msg)
             self.session.start()
         elif msg.command == 'stop_session':
             if not self.session_stop.isSet():
@@ -173,27 +156,12 @@ class SpecProc(Process):
         else:
             logging.warning('spec: unknown command ' + cmd.command)
 
-    def session_run_once(self, session_name, livetime):
-        msg = Message(command='get_spectrum_ok')
-        msg.arguments['session_name'] = session_name
-        msg.arguments['livetime'] = livetime
-        self.reset_acquisition()
-        msg.arguments['latitude_start'] = self.gps_client.latitude
-        msg.arguments['longitude_start'] = self.gps_client.longitude
-        msg.arguments['altitude_start'] = self.gps_client.altitude
-        self.run_acquisition(msg)
-        msg.arguments['latitude_end'] = self.gps_client.latitude
-        msg.arguments['longitude_end'] = self.gps_client.longitude
-        msg.arguments['altitude_end'] = self.gps_client.altitude
-        self.send_msg(msg)
-
     def stabilize_probe(self, voltage, coarse_gain, fine_gain):
         # Turn on HV
         Stabilized_Probe_Bussy = 0x00080000
         Stabilized_Probe_OK = 0x00100000
         dtb_probe_type = self.dtb.getParameter(ParameterCodes.Input_Status, self.input)
         if((dtb_probe_type & Stabilized_Probe_OK) != Stabilized_Probe_OK):
-            #HV_Value = Utilities.readLine("Enter HV Value: ")
             self.dtb.setParameter(ParameterCodes.Input_Voltage, int(voltage), self.input)
             self.dtb.setParameter(ParameterCodes.Input_VoltageStatus, True, self.input)
             #Wait till ramping is complete
@@ -203,6 +171,19 @@ class SpecProc(Process):
         # Set gain
         self.dtb.setParameter(ParameterCodes.Input_CoarseGain, float(coarse_gain), self.input) # [1.0, 2.0, 4.0, 8.0]
         self.dtb.setParameter(ParameterCodes.Input_FineGain, float(fine_gain), self.input) # [1.0, 5.0]
+
+    def run_acquisition_once(self, req_msg):
+        resp_msg = copy.deepcopy(req_msg)
+        resp_msg.command = 'get_spectrum_ok'
+        self.reset_acquisition()
+        resp_msg.arguments['latitude_start'] = self.gps_client.latitude
+        resp_msg.arguments['longitude_start'] = self.gps_client.longitude
+        resp_msg.arguments['altitude_start'] = self.gps_client.altitude
+        self.run_acquisition(resp_msg)
+        resp_msg.arguments['latitude_end'] = self.gps_client.latitude
+        resp_msg.arguments['longitude_end'] = self.gps_client.longitude
+        resp_msg.arguments['altitude_end'] = self.gps_client.altitude
+        self.send_msg(resp_msg)
 
     def reset_acquisition(self):
         #Disable all acquisition
@@ -248,6 +229,10 @@ class SpecProc(Process):
         #self.save(sd, i)
 
 #    def save(self, sd, idx):
+        #self.session_name = msg.arguments['session_name']
+        #self.session_dir = os.path.expanduser("~/ashes/") + self.session_name
+        #os.makedirs(self.session_dir, 0777)
+        #logging.info('new session dir: ' + self.session_dir)
 #        chans = sd.getSpectrum().getCounts()
 #        mca, sec, rt, lt, dat, tim, off, nc = 1, 0, sd.getRealTime(), sd.getLiveTime(), "07DEC151", "0707", 0, len(chans) # FIXME
 #        hdr = pack("hhhhii8s4shh", -1, mca, 1, sec, rt, lt, dat, tim, off, nc)
