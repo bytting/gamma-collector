@@ -20,7 +20,6 @@
 
 from __future__ import print_function
 from proto import *
-from gps_proc import GpsProc
 from spec_proc import SpecProc
 from net_proc import NetProc
 from multiprocessing import Pipe
@@ -34,23 +33,18 @@ class Burn():
         self.running = False
         self.session_dir = ''
 
-        fdg_pass, self.fdg = Pipe()
         fds_pass, self.fds = Pipe()
         fdn_pass, self.fdn = Pipe()
 
-        setblocking(self.fdg, 0)
         setblocking(self.fds, 0)
         setblocking(self.fdn, 0)
 
-        self.g = GpsProc(fdg_pass)
         self.s = SpecProc(fds_pass)
         self.n = NetProc(fdn_pass)
 
-        self.g.start()
         self.s.start()
         self.n.start()
 
-        fdg_pass.close()
         fds_pass.close()
         fdn_pass.close()
 
@@ -60,7 +54,7 @@ class Burn():
         logging.info('main: warming up services')
         time.sleep(4)
 
-        inputs = [self.fdn, self.fdg, self.fds]
+        inputs = [self.fdn, self.fds]
 
         while self.running:
             readable, _, exceptional = select.select(inputs, [], inputs)
@@ -68,8 +62,6 @@ class Burn():
                 msg = s.recv()
                 if s is self.fdn:
                     self.dispatch_net_msg(msg)
-                elif s is self.fdg:
-                    self.dispatch_gps_msg(msg)
                 elif s is self.fds:
                     self.dispatch_spec_msg(msg)
 
@@ -80,7 +72,6 @@ class Burn():
             msg.command = 'ping_ok'
             self.fdn.send(msg)
         elif msg.command == 'close':
-            self.fdg.send(msg)
             self.fds.send(msg)
             msg.command = 'close_ok'
             self.fdn.send(msg)
@@ -89,13 +80,8 @@ class Burn():
             self.fds.send(msg)
         elif msg.command == 'stop_session':
             self.fds.send(msg)
-        elif msg.command == 'get_fix':
-            self.fdg.send(msg)
         elif msg.command == 'set_gain':
             self.fds.send(msg)
-
-    def dispatch_gps_msg(self, msg):
-        self.fdn.send(msg)
 
     def dispatch_spec_msg(self, msg):
         self.fdn.send(msg)
@@ -104,11 +90,9 @@ class Burn():
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.fdg.close()
         self.fds.close()
         self.fdn.close()
 
-        self.g.join()
         self.s.join()
         self.n.join()
 

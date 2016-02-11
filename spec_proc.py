@@ -19,8 +19,9 @@
 
 from multiprocessing import Process
 from proto import *
+from gps import *
 from datetime import datetime
-import os, sys, time, socket, threading, logging
+import os, sys, math, time, socket, threading, logging
 import Utilities
 
 Utilities.setup()
@@ -30,6 +31,43 @@ from ParameterCodes import *
 from CommandCodes import *
 from ParameterTypes import *
 from PhaData import *
+
+class GpsThread(threading.Thread):
+
+    def __init__(self, event):
+        threading.Thread.__init__(self)
+        self._stopped = event
+        self.gpsd = gps(mode=WATCH_ENABLE)
+        self.last_lat = 0
+        self.last_lon = 0
+        self.last_alt = 0
+
+    def run(self):
+        logging.info('gps: starting service')
+
+        while not self._stopped.wait(0.5):
+            while self.gpsd.waiting():
+                self.gpsd.next()
+                if not math.isnan(self.gpsd.fix.latitude):
+                    self.last_lat = self.gpsd.fix.latitude
+                if not math.isnan(self.gpsd.fix.longitude):
+                    self.last_lon = self.gpsd.fix.longitude
+                if not math.isnan(self.gpsd.fix.altitude):
+                    self.last_alt = self.gpsd.fix.altitude
+
+        logging.info('gps: terminating')
+
+    @property
+    def latitude(self):
+        return self.last_lat
+
+    @property
+    def longitude(self):
+        return self.last_lon
+
+    @property
+    def altitude(self):
+        return self.last_alt
 
 class SessionThread(threading.Thread):
     def __init__(self, event, target, session_name, iterations, delay, livetime):
@@ -42,13 +80,17 @@ class SessionThread(threading.Thread):
         self._livetime = livetime
 
     def run(self):
+        logging.info('session: starting')
+
         while not self._stopped.wait(self._delay):
             self._iterations = self._iterations - 1
             if self._iterations < 0:
                 break
-            logging.info('running once')
+            logging.info('session: running once')
             self._target(self._session_name, self._livetime)
-            logging.info('running once done')
+            logging.info('session: running once done')
+
+        logging.info('session: terminating')
 
 class SpecProc(Process):
     def __init__(self, fd):
@@ -56,6 +98,8 @@ class SpecProc(Process):
         self.fd = fd
         self.running = False
         self.send_lock = threading.Lock()
+        self.gps_stop = threading.Event()
+        self.gps_client = GpsThread(self.gps_stop)
         self.group = 1
         self.input = 1
         self.dtb = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
@@ -66,11 +110,21 @@ class SpecProc(Process):
     def run(self):
         logging.info('spec: staring service')
         self.running = True
+
+        self.gps_client.start()
+
         while(self.running):
             if self.fd.poll():
                 self.dispatch(self.fd.recv())
 
         self.fd.close()
+        #self.session_stop.set()
+        #self.session.join()
+        #logging.info('spec: session stopped')
+        self.gps_stop.set()
+        self.gps_client.join()
+        logging.info('spec: GPS client stopped')
+
         logging.info('spec: terminating')
 
     def send_msg(self, msg):
@@ -113,7 +167,7 @@ class SpecProc(Process):
             if not self.session_stop.isSet():
                 self.session_stop.set()
                 self.session.join()
-                logging.info('session stopped')
+                logging.info('spec: session stopped')
             msg.command = 'stop_session_ok'
             self.send_msg(msg)
         else:
@@ -124,7 +178,13 @@ class SpecProc(Process):
         msg.arguments['session_name'] = session_name
         msg.arguments['livetime'] = livetime
         self.reset_acquisition()
+        msg.arguments['latitude_start'] = self.gps_client.latitude
+        msg.arguments['longitude_start'] = self.gps_client.longitude
+        msg.arguments['altitude_start'] = self.gps_client.altitude
         self.run_acquisition(msg)
+        msg.arguments['latitude_end'] = self.gps_client.latitude
+        msg.arguments['longitude_end'] = self.gps_client.longitude
+        msg.arguments['altitude_end'] = self.gps_client.altitude
         self.send_msg(msg)
 
     def stabilize_probe(self, voltage, coarse_gain, fine_gain):
