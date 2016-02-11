@@ -2,8 +2,6 @@ Only allow one connected client
 
 Handle messages bigger than the pipe buffer size, or work around it
 
-Change the gps process to a thread and make it local to the spec process
-
 Store spectrums on disk. This can also be useful for working around the pipe buffer size
 
 Add command line parameters needed to start up without networking
