@@ -55,6 +55,7 @@ class SpecProc(Process):
         Process.__init__(self)
         self.fd = fd
         self.running = False
+        self.send_lock = threading.Lock()
         self.group = 1
         self.input = 1
         self.dtb = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
@@ -72,6 +73,15 @@ class SpecProc(Process):
         self.fd.close()
         logging.info('spec: terminating')
 
+    def send_msg(self, msg):
+        self.send_lock.acquire()
+        try:
+            self.fd.send(msg)
+        except:
+            logging.error('spec: send exception: ' + sys.exc_info()[0])
+        finally:
+            self.send_lock.release()
+
     def dispatch(self, msg):
         if msg.command == 'set_gain':
             voltage = msg.arguments["voltage"]
@@ -80,7 +90,7 @@ class SpecProc(Process):
             self.stabilize_probe(voltage, coarse, fine)
             logging.info('spec: gain has been set')
             msg.command = 'set_gain_ok'
-            self.fd.send(msg)
+            self.send_msg(msg)
         elif msg.command == 'close':
             self.running = False
         elif msg.command == 'new_session':
@@ -97,7 +107,7 @@ class SpecProc(Process):
                     float(msg.arguments['delay']),
                     float(msg.arguments['livetime']))
             msg.command = 'new_session_ok'
-            self.fd.send(msg)
+            self.send_msg(msg)
             self.session.start()
         elif msg.command == 'stop_session':
             if not self.session_stop.isSet():
@@ -105,7 +115,7 @@ class SpecProc(Process):
                 self.session.join()
                 logging.info('session stopped')
             msg.command = 'stop_session_ok'
-            self.fd.send(msg)
+            self.send_msg(msg)
         else:
             logging.warning('spec: unknown command ' + cmd.command)
 
@@ -115,7 +125,7 @@ class SpecProc(Process):
         msg.arguments['livetime'] = livetime
         self.reset_acquisition()
         self.run_acquisition(msg)
-        self.fd.send(msg)
+        self.send_msg(msg)
 
     def stabilize_probe(self, voltage, coarse_gain, fine_gain):
         # Turn on HV
