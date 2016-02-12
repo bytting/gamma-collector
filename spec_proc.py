@@ -47,7 +47,7 @@ class GpsThread(threading.Thread):
         self.last_alt = 0
         self.last_epv = 0
         self.last_eps = 0
-        self.last_time = None
+        self.last_time = ''
 
     def run(self):
         logging.info('gps: starting service')
@@ -231,11 +231,10 @@ class SpecProc(Process):
         resp_msg.arguments['altitude_start_err'] = self.gps_client.epv
         resp_msg.arguments['gps_speed_start'] = self.gps_client.speed
         resp_msg.arguments['gps_speed_start_err'] = self.gps_client.eps
-        resp_msg.arguments['gps_time_start'] = self.gps_client.time
-        #resp_msg.arguments['datetime_start'] = time.strftime("%Y-%m-%d %H:%M:%S")
+        resp_msg.arguments['gps_time_start'] = isotime(self.gps_client.time)
+        logging.info(self.gps_client.time)
         self.run_acquisition(resp_msg, session_index)
-        resp_msg.arguments['gps_time_end'] = self.gps_client.time
-        #resp_msg.arguments['datetime_end'] = time.strftime("%Y-%m-%d %H:%M:%S")
+        resp_msg.arguments['gps_time_end'] = isotime(self.gps_client.time)
         resp_msg.arguments['latitude_end'] = self.gps_client.latitude
         resp_msg.arguments['latitude_end_err'] = self.gps_client.epx
         resp_msg.arguments['longitude_end'] = self.gps_client.longitude
