@@ -20,7 +20,7 @@
 from multiprocessing import Process
 from proto import *
 from gps import *
-from datetime import datetime
+#from datetime import datetime
 from struct import pack
 from array import array
 import os, sys, math, copy, time, socket, threading, logging
@@ -41,8 +41,13 @@ class GpsThread(threading.Thread):
         self._stopped = event
         self.gpsd = gps(mode=WATCH_ENABLE)
         self.last_lat = 0
+        self.last_epx = 0
         self.last_lon = 0
+        self.last_epy = 0
         self.last_alt = 0
+        self.last_epv = 0
+        self.last_eps = 0
+        self.last_time = None
 
     def run(self):
         logging.info('gps: starting service')
@@ -52,10 +57,21 @@ class GpsThread(threading.Thread):
                 self.gpsd.next()
                 if not math.isnan(self.gpsd.fix.latitude):
                     self.last_lat = self.gpsd.fix.latitude
+                if not math.isnan(self.gpsd.fix.epx):
+                    self.last_epx = self.gpsd.fix.epx
                 if not math.isnan(self.gpsd.fix.longitude):
                     self.last_lon = self.gpsd.fix.longitude
+                if not math.isnan(self.gpsd.fix.epy):
+                    self.last_epy = self.gpsd.fix.epy
                 if not math.isnan(self.gpsd.fix.altitude):
                     self.last_alt = self.gpsd.fix.altitude
+                if not math.isnan(self.gpsd.fix.epv):
+                    self.last_epv = self.gpsd.fix.epv
+                if not math.isnan(self.gpsd.fix.speed):
+                    self.last_speed = self.gpsd.fix.speed
+                if not math.isnan(self.gpsd.fix.eps):
+                    self.last_eps = self.gpsd.fix.eps
+                self.last_time = self.gpsd.fix.time
 
         logging.info('gps: terminating')
 
@@ -64,12 +80,36 @@ class GpsThread(threading.Thread):
         return self.last_lat
 
     @property
+    def epx(self):
+        return self.last_epx
+
+    @property
     def longitude(self):
         return self.last_lon
 
     @property
+    def epy(self):
+        return self.last_epy
+
+    @property
     def altitude(self):
         return self.last_alt
+
+    @property
+    def epv(self):
+        return self.last_epv
+
+    @property
+    def speed(self):
+        return self.last_speed
+
+    @property
+    def eps(self):
+        return self.last_eps
+
+    @property
+    def time(self):
+        return self.last_time
 
 class SessionThread(threading.Thread):
     def __init__(self, event, target, msg):
@@ -184,12 +224,26 @@ class SpecProc(Process):
         resp_msg.arguments['session_index'] = session_index
         self.reset_acquisition()
         resp_msg.arguments['latitude_start'] = self.gps_client.latitude
+        resp_msg.arguments['latitude_start_err'] = self.gps_client.epx
         resp_msg.arguments['longitude_start'] = self.gps_client.longitude
+        resp_msg.arguments['longitude_start_err'] = self.gps_client.epy
         resp_msg.arguments['altitude_start'] = self.gps_client.altitude
+        resp_msg.arguments['altitude_start_err'] = self.gps_client.epv
+        resp_msg.arguments['gps_speed_start'] = self.gps_client.speed
+        resp_msg.arguments['gps_speed_start_err'] = self.gps_client.eps
+        resp_msg.arguments['gps_time_start'] = self.gps_client.time
+        #resp_msg.arguments['datetime_start'] = time.strftime("%Y-%m-%d %H:%M:%S")
         self.run_acquisition(resp_msg, session_index)
+        resp_msg.arguments['gps_time_end'] = self.gps_client.time
+        #resp_msg.arguments['datetime_end'] = time.strftime("%Y-%m-%d %H:%M:%S")
         resp_msg.arguments['latitude_end'] = self.gps_client.latitude
+        resp_msg.arguments['latitude_end_err'] = self.gps_client.epx
         resp_msg.arguments['longitude_end'] = self.gps_client.longitude
+        resp_msg.arguments['longitude_end_err'] = self.gps_client.epy
         resp_msg.arguments['altitude_end'] = self.gps_client.altitude
+        resp_msg.arguments['altitude_end_err'] = self.gps_client.epv
+        resp_msg.arguments['gps_speed_end'] = self.gps_client.speed
+        resp_msg.arguments['gps_speed_end_err'] = self.gps_client.eps
         self.send_msg(resp_msg)
 
     def reset_acquisition(self):
@@ -231,9 +285,10 @@ class SpecProc(Process):
         msg.arguments["livetime"] = sd.getLiveTime()
         msg.arguments["realtime"] = sd.getRealTime()
         msg.arguments["computational_limit"] = sd.getComputationalValue()
-        msg.arguments["status"] = Utilities.getStatusDescription(sd.getStatus())
-        """print "Input: %d; Group: %d"%(sd.getInput(), sd.getGroup())"""
-        self.save_acquisition(sd, msg, session_index)
+        msg.arguments["spectral_input"] = sd.getInput()
+        msg.arguments["spectral_group"] = sd.getGroup()
+        msg.arguments["spectral_status"] = Utilities.getStatusDescription(sd.getStatus())
+        #self.save_acquisition(sd, msg, session_index)
 
     def save_acquisition(self, sd, msg, session_index):
         session_name = msg.arguments['session_name']
