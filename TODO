@@ -1,5 +1,3 @@
 Only allow one connected client
 
 Add command line parameters needed to start up without networking
-
-Finish documenting the code

@@ -24,8 +24,9 @@ from gps import *
 from struct import pack
 from array import array
 import os, sys, math, copy, time, socket, threading, logging
-import Utilities
 
+# Import API for the detector
+import Utilities
 Utilities.setup()
 
 from DeviceFactory import *
@@ -35,8 +36,14 @@ from ParameterTypes import *
 from PhaData import *
 
 class GpsThread(threading.Thread):
-
+    """
+    Thread class to handle the gps driver
+    """
     def __init__(self, event):
+        """
+        Description:
+            Initialize the gps thread
+        """
         threading.Thread.__init__(self)
         self._stopped = event
         self.gpsd = gps(mode=WATCH_ENABLE)
@@ -51,9 +58,16 @@ class GpsThread(threading.Thread):
         self.last_time = ''
 
     def run(self):
+        """
+        Description:
+            Entry point for the gps thread
+        """
         logging.info('gps: starting service')
 
+        # Process any buffered gps signals every .3 seconds
         while not self._stopped.wait(0.3):
+
+            # Update our last measurement until buffer is empty
             while self.gpsd.waiting():
                 self.gpsd.next()
                 if not math.isnan(self.gpsd.fix.latitude):
@@ -114,36 +128,65 @@ class GpsThread(threading.Thread):
         return self.last_time
 
 class SessionThread(threading.Thread):
+    """
+    Thread class to govern a single session
+    """
     def __init__(self, event, target, msg):
+        """
+        Description:
+            Initialize the session thread
+        Arguments:
+            event - Event to notify exit
+            target - Function running the detector
+            msg - The session message containing info about this session
+        """
         threading.Thread.__init__(self)
         self._stopped = event
         self._target = target
         self._msg = msg
 
     def run(self):
+        """
+        Description:
+            Entry point for the session thread
+        """
         logging.info('session: starting')
-        delay = float(self._msg.arguments["delay"])
-        iterations = int(self._msg.arguments["iterations"])
-        infinite = iterations == -1
-        index = 0
+        # Extract the session variables from the session message
+        delay = float(self._msg.arguments["delay"]) # Time to eait between each spectrum
+        iterations = int(self._msg.arguments["iterations"]) # Number of spectrums to take
+        infinite = iterations == -1 # If iterations is -1, run forever
+        index = 0 # Keep track of spectrums (spectrum id)
+
         while not self._stopped.wait(delay):
             if not infinite:
+                # Exit when we reach a zero spectrum count
                 iterations = iterations - 1
                 if iterations < 0:
                     break
+            # Run the detector
             self._target(self._msg, index)
             index = index + 1
 
         logging.info('session: terminating')
 
 class SpecProc(Process):
+    """
+    Process class for handling the gps and spectrometry
+    """
     def __init__(self, fd):
+        """
+        Description:
+            Initialize the spectrometer process
+        Arguments:
+            fd - file descriptor to pass and receive messages to/from controller
+        """
         Process.__init__(self)
         self.fd = fd
         self.running = False
-        self.send_lock = threading.Lock()
-        self.gps_stop = threading.Event()
-        self.gps_client = GpsThread(self.gps_stop)
+        self.send_lock = threading.Lock() # Lock used to syncronize sending of messages to controller
+        self.gps_stop = threading.Event() # Event used to notify gps thread
+        self.gps_client = GpsThread(self.gps_stop) # Create the gps thread
+        # Initalize the detector
         self.group = 1
         self.input = 1
         self.dtb = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
@@ -152,23 +195,34 @@ class SpecProc(Process):
         self.dtb.lock("administrator", "password", self.input)
 
     def run(self):
+        """
+        Description:
+            Entry point for the spectrometer process
+        """
         logging.info('spec: staring service')
         self.running = True
 
-        self.gps_client.start()
+        self.gps_client.start() # Start the gps
 
+        # Event loop
         while(self.running):
             if self.fd.poll():
-                self.dispatch(self.fd.recv())
+                self.dispatch(self.fd.recv()) # Handle messages from the controller
 
+        # Cleanup and exit
         self.fd.close()
         self.gps_stop.set()
         self.gps_client.join()
         logging.info('spec: GPS client stopped')
-
         logging.info('spec: terminating')
 
     def send_msg(self, msg):
+        """
+        Description:
+            Function to safely pass messages to controller
+        Arguments:
+            msg - The message to pass
+        """
         self.send_lock.acquire()
         try:
             self.fd.send(msg)
@@ -178,55 +232,81 @@ class SpecProc(Process):
             self.send_lock.release()
 
     def dispatch(self, msg):
-        if msg.command == 'set_gain':
+        """
+        Description:
+            Handle a message received from controller
+        Arguments:
+            msg - The message received
+        """
+        if msg.command == 'set_gain': # Set the gain parameters for the detector
             voltage = msg.arguments["voltage"]
             coarse = msg.arguments["coarse_gain"]
             fine = msg.arguments["fine_gain"]
             self.stabilize_probe(voltage, coarse, fine)
             logging.info('spec: gain has been set')
-            msg.command = 'set_gain_ok'
+            msg.command = 'set_gain_ok' # Notify ground control that gain has been set
             self.send_msg(msg)
-        elif msg.command == 'close':
+        elif msg.command == 'close': # Controller wants us to close down
             self.running = False
-        elif msg.command == 'new_session':
+        elif msg.command == 'new_session': # Start a new session
             msg.command = 'new_session_ok'
             self.send_msg(msg)
             self.session_stop = threading.Event()
             self.session = SessionThread(self.session_stop, self.run_acquisition_once, msg)
             self.session.start()
-        elif msg.command == 'stop_session':
+        elif msg.command == 'stop_session': # Stop any running sessions
             if not self.session_stop.isSet():
                 self.session_stop.set()
                 self.session.join()
                 logging.info('spec: session stopped')
-            msg.command = 'stop_session_ok'
+            msg.command = 'stop_session_ok' # Notify ground control that we have stopped any sessions
             self.send_msg(msg)
         else:
+            # Unknown command received from controller
             logging.warning('spec: unknown command ' + cmd.command)
 
     def stabilize_probe(self, voltage, coarse_gain, fine_gain):
-        # Turn on HV
+        """
+        Description:
+            Set gain parameters for the detector
+        Arguments:
+            voltage - The voltage level
+            coarse_gain - The coarse gain level
+            fine_gain - The fine gain level
+        """
+        # Osprey API constants
         Stabilized_Probe_Bussy = 0x00080000
         Stabilized_Probe_OK = 0x00100000
         dtb_probe_type = self.dtb.getParameter(ParameterCodes.Input_Status, self.input)
+        # Set voltage
         if((dtb_probe_type & Stabilized_Probe_OK) != Stabilized_Probe_OK):
             self.dtb.setParameter(ParameterCodes.Input_Voltage, int(voltage), self.input)
             self.dtb.setParameter(ParameterCodes.Input_VoltageStatus, True, self.input)
-            #Wait till ramping is complete
+            # Wait till ramping is complete
             logging.info('spec: ramping HVPS...')
             while(self.dtb.getParameter(ParameterCodes.Input_VoltageRamping, self.input) is True):
                 time.sleep(.4)
-        # Set gain
+        # Set coarse and fine gain
         self.dtb.setParameter(ParameterCodes.Input_CoarseGain, float(coarse_gain), self.input) # [1.0, 2.0, 4.0, 8.0]
         self.dtb.setParameter(ParameterCodes.Input_FineGain, float(fine_gain), self.input) # [1.0, 5.0]
 
     def run_acquisition_once(self, req_msg, session_index):
+        """
+        Description:
+            Gather info from gps and detector
+        Arguments:
+            req_msg - The session message
+            session_index - The sequence number in current session
+        """
+        # Prepare the response message
         resp_msg = copy.deepcopy(req_msg)
         resp_msg.command = 'spectrum'
         resp_msg.arguments['session_index'] = session_index
 
+        # Reset detector
         self.reset_acquisition()
 
+        # Gather gps info before running the detector
         resp_msg.arguments['latitude_start'] = self.gps_client.latitude
         resp_msg.arguments['latitude_start_err'] = self.gps_client.epx
         resp_msg.arguments['longitude_start'] = self.gps_client.longitude
@@ -237,8 +317,10 @@ class SpecProc(Process):
         resp_msg.arguments['gps_speed_start_err'] = self.gps_client.eps
         resp_msg.arguments['gps_time_start'] = self.gps_client.time
 
+        # Run the detector
         self.run_acquisition(resp_msg, session_index)
 
+        # Gather gps info after running the detector
         resp_msg.arguments['gps_time_end'] = self.gps_client.time
         resp_msg.arguments['latitude_end'] = self.gps_client.latitude
         resp_msg.arguments['latitude_end_err'] = self.gps_client.epx
@@ -249,12 +331,17 @@ class SpecProc(Process):
         resp_msg.arguments['gps_speed_end'] = self.gps_client.speed
         resp_msg.arguments['gps_speed_end_err'] = self.gps_client.eps
 
+        # Save acquisition to file and send a meta message to controller
         fn = self.save_acquisition(resp_msg, session_index)
         m = Message('spectrum_ready')
         m.arguments["filename"] = fn
         self.send_msg(m)
 
     def reset_acquisition(self):
+        """
+        Description:
+            Reset and initialize the detector
+        """
         #Disable all acquisition
         Utilities.disableAcquisition(self.dtb, self.input)
         #Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
@@ -267,8 +354,15 @@ class SpecProc(Process):
         self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
 
     def run_acquisition(self, msg, session_index):
-        livetime = float(msg.arguments["livetime"])
+        """
+        Description:
+            Run the detector
+        Arguments:
+            msg - The response message
+            session_index - The sequence number in current session
+        """
         # Setup presets
+        livetime = float(msg.arguments["livetime"])
         self.dtb.setParameter(ParameterCodes.Preset_Live, livetime, self.input)
         # Clear data and time
         self.dtb.control(CommandCodes.Clear, self.input)
@@ -280,6 +374,7 @@ class SpecProc(Process):
                 break
             time.sleep(.1)
 
+        # Extract last spectrum from detector and prepare parameters
         chans = sd.getSpectrum().getCounts()
         total_count = 0
         channel_string = ''
@@ -287,6 +382,7 @@ class SpecProc(Process):
             total_count += ch
             channel_string += str(ch) + ' '
 
+        # Add spectrum data to the response message
         msg.arguments["channels"] = channel_string.strip()
         msg.arguments["channel_count"] = len(chans)
         msg.arguments["uncorrected_total_count"] = total_count
@@ -298,16 +394,33 @@ class SpecProc(Process):
         msg.arguments["spectral_status"] = Utilities.getStatusDescription(sd.getStatus())
 
     def save_acquisition(self, msg, session_index):
+        """
+        Description:
+            Save the gps and specter data to file (json format)
+        Arguments:
+            msg - The response message
+            session_index - The sequence number in current session
+        """
+        # Build the path to store the response message
         session_name = msg.arguments['session_name']
         session_dir = os.path.expanduser("~/ashes/") + session_name
         if not os.path.isdir(session_dir):
             os.makedirs(session_dir, 0777)
         fname = session_dir + os.path.sep + str(session_index) + ".json"
+        # Store the response message to file
         with open(fname, "w") as f:
             json.dump(msg.__dict__, f)
         return fname
 
     def save_acquisition_as_chn(self, sd, msg, session_index):
+        """
+        Description:
+            Save the the specter data to file (chn format)
+        Arguments:
+            sd - Spectrum data
+            msg - The session message
+            session_index - The sequence number in current session
+        """
         session_name = msg.arguments['session_name']
         session_dir = os.path.expanduser("~/ashes/") + session_name
         if not os.path.isdir(session_dir):

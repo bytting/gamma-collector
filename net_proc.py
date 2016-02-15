@@ -29,7 +29,10 @@ class NetProc(Process):
 
     def __init__(self, fd):
         """
-        Initialization of the net process
+        Description:
+            Initialization of the net process
+        Arguments:
+            fd - File descriptor to send and receive messages to/from controller
         """
         Process.__init__(self)
         self.fd = fd
@@ -49,7 +52,8 @@ class NetProc(Process):
 
     def run(self):
         """
-        Entry point for the net process
+        Description:
+            Entry point for the net process
         """
         logging.info('network: starting service')
         self._running = True
@@ -104,15 +108,18 @@ class NetProc(Process):
 
     def dispatch_ctrl_msg(self, msg):
         """
-        Serialize a controller message to a netstring and send it to ground control
+        Description:
+            Serialize a controller message to a netstring and send it to ground control
+        Arguments:
+            msg - The controller message to dispatch
         """
         if msg.command == 'close_ok': # main controller is closing
             self._running = False
 
         data = ''
         if msg.command == 'spectrum_ready': # Meta message
-            # 'spectrum_ready' is a meta message indicating that the message to send is stored in a file.
-            # The file with the message to send is stored in msg.arguments['filename']
+            # 'spectrum_ready' is a meta message indicating that a response message is stored on disk
+            # The path to the file is stored in msg.arguments['filename']
             with open(msg.arguments["filename"]) as jfd:
                 m = json.load(jfd) # Load json from file
             data = json.dumps(m)
@@ -136,7 +143,8 @@ class NetProc(Process):
 
     def dispatch_net_msg(self):
         """
-        Convert received data to messages and pass them on to main controller
+        Description:
+            Convert received data to messages and pass them to the controller
         """
         while True:
             if len(self.buffer) < 4:
@@ -156,6 +164,7 @@ class NetProc(Process):
 
     def is_running(self):
         """
-        Return wether the net process is still running
+        Description:
+            Return wether the net process is still running
         """
         return self._running

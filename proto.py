@@ -18,6 +18,12 @@
 # Authors: Dag Robole,
 
 class Message(object):
+    """
+    Class used to store a protocol message
+    """
     def __init__(self, command='', arguments={}):
+        """
+        Initialize message
+        """
         self.command = command
         self.arguments = arguments

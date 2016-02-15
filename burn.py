@@ -30,71 +30,91 @@ import time, sys, os, select, logging
 class Burn():
 
     def __init__(self):
+        """
+        initialize main controller
+        """
         self.running = False
-        self.session_dir = ''
 
+        # Create pipes for message passing between gps_proc and spec_proc
         fds_pass, self.fds = Pipe()
         fdn_pass, self.fdn = Pipe()
 
+        # Make file descriptors non-blocking
         setblocking(self.fds, 0)
         setblocking(self.fdn, 0)
 
+        # Create and start child processes
         self.s = SpecProc(fds_pass)
         self.n = NetProc(fdn_pass)
-
         self.s.start()
         self.n.start()
 
+        # Close unused file descriptors
+        # The child processes inherits *all* parent descriptors (FIXME)
         fds_pass.close()
         fdn_pass.close()
 
     def run(self):
+        """
+        Entry point for the main controller
+        """
         self.running = True
 
-        logging.info('main: warming up services')
+        # Wait for gps to start up
+        logging.info('ctrl: warming up services')
         time.sleep(5)
 
+        # Prepare file descriptors for selection
         inputs = [self.fdn, self.fds]
 
+        # Main event loop
         while self.running:
             readable, _, _ = select.select(inputs, [], [])
+            # Process readable file descriptors
             for s in readable:
                 msg = s.recv()
-                if s is self.fdn:
-                    self.dispatch_net_msg(msg)
-                elif s is self.fds:
-                    self.dispatch_spec_msg(msg)
+                if s is self.fdn: # Message received from network
+                    self.dispatch_net_msg(msg) # Handle network message
+                elif s is self.fds: # Message received from spectrometer
+                    self.dispatch_spec_msg(msg) # Handle spectrometer message
 
     def dispatch_net_msg(self, msg):
+        """
+        Function to handle messages from the network
+        """
         if not msg:
             return
         if msg.command == 'ping':
             msg.command = 'ping_ok'
             self.fdn.send(msg)
         elif msg.command == 'close':
-            self.fds.send(msg)
-            msg.command = 'close_ok'
-            self.fdn.send(msg)
+            # Ground control has requested a close down
+            self.fds.send(msg) # Notify spectrometer
+            msg.command = 'close_ok' # Convert the message to a response
+            self.fdn.send(msg) # Notify network process and ground control
             self.running = False
         elif msg.command == 'new_session' or msg.command == 'stop_session' or msg.command == 'set_gain':
-            self.fds.send(msg)
+            self.fds.send(msg) # No housekeeping necessary, pass directly to spectrometer
         else:
-            logging.warning('controller: unknown command: ' + msg.command)
+            # Unknown command received from network
+            logging.warning('ctrl: unknown command: ' + msg.command)
 
     def dispatch_spec_msg(self, msg):
+        # Message received from spectrometer, pass on to network
         self.fdn.send(msg)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        # Main controller destructor, cleaning up
         self.fds.close()
         self.fdn.close()
 
         self.s.join()
         self.n.join()
 
-        logging.info('main: terminating')
+        logging.info('ctrl: terminating')
 
 if __name__ == '__main__':
     #try:

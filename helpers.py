@@ -20,6 +20,9 @@
 import os, fcntl 
 
 def setblocking(fd, state):
+    """
+    Set the blocking state of a file descriptor
+    """
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     if state:
         fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
