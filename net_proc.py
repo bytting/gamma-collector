@@ -58,11 +58,9 @@ class NetProc(Process):
 
         # Start select event loop
         while(self._running):
-
             readable, _, _ = select.select(inputs, [], [])
 
             for s in readable: # Handle reads
-
                 if s is self.sock: # Incoming connection on listening socket
                     # We only allow one connection at a time (TODO)
                     self.conn, self.addr = s.accept()
@@ -72,42 +70,20 @@ class NetProc(Process):
                     logging.info('network: connection received from ' + self.addr[0])
 
                 elif s is self.fd: # Incoming message from main controller
-                    msg = s.recv()
-                    if msg.command == 'close_ok': # main controller is closing
-                        self._running = False
-                    else:
-                        data = ''
-                        if msg.command == 'spectrum_ready':
-                            with open(msg.arguments["filename"]) as jfd:
-                                m = json.load(jfd) # Load json from file
-                            data = json.dumps(m)
-                        else:
-                            data = json.dumps(msg.__dict__) # Convert object to json
-
-                        netstring = struct.pack("!I", len(data)) + data # Serialize json
-                        totlen, currlen = len(netstring), 0
-                        while True:
-                            # Send complete packet
-                            l = self.conn.send(netstring[currlen:])
-                            if l == 0:
-                                inputs.remove(self.conn)
-                                self.conn.close()
-                                logging.info('network: connection broken from ' + self.addr[0])
-                                break
-                            currlen += l
-                            if currlen >= totlen:
-                                break
+                    self.dispatch_ctrl_msg(s.recv())
 
                 else: # Incoming data from existing connection
                     try:
                         data = s.recv(1024)
                     except socket.error as e:
                         if e.errno == errno.ECONNRESET:
+                            # Unexpected disconnect from client
                             inputs.remove(s)
                             s.close()
                         logging.error('network: ' + self.addr[0] + ': ' + os.strerror(e.errno))
                         continue
                     if not data or data == '':
+                        # Unexpected disconnect from client
                         inputs.remove(s)
                         s.close()
                         logging.error('network: connection lost')
@@ -115,7 +91,7 @@ class NetProc(Process):
                     else:
                         # Data successfully received, store in buffer
                         self.buffer += data
-                        self.dispatch_msg()
+                        self.dispatch_net_msg()
 
         # Close active connections
         if self.conn is not None:
@@ -126,7 +102,39 @@ class NetProc(Process):
 
         logging.info('network: terminating')
 
-    def dispatch_msg(self):
+    def dispatch_ctrl_msg(self, msg):
+        """
+        Serialize a controller message to a netstring and send it to ground control
+        """
+        if msg.command == 'close_ok': # main controller is closing
+            self._running = False
+
+        data = ''
+        if msg.command == 'spectrum_ready': # Meta message
+            # 'spectrum_ready' is a meta message indicating that the message to send is stored in a file.
+            # The file with the message to send is stored in msg.arguments['filename']
+            with open(msg.arguments["filename"]) as jfd:
+                m = json.load(jfd) # Load json from file
+            data = json.dumps(m)
+        else: # Regular message
+            data = json.dumps(msg.__dict__) # Convert object to json
+
+        # Serialize the message into a netstring
+        netstring = struct.pack("!I", len(data)) + data
+        # Send the message over the network
+        totlen, currlen = len(netstring), 0
+        while True: # Continue until the full message is transferred
+            l = self.conn.send(netstring[currlen:])
+            if l == 0:
+                inputs.remove(self.conn)
+                self.conn.close()
+                logging.info('network: connection broken from ' + self.addr[0])
+                break
+            currlen += l
+            if currlen >= totlen:
+                break
+
+    def dispatch_net_msg(self):
         """
         Convert received data to messages and pass them on to main controller
         """

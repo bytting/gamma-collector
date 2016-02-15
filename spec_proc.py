@@ -253,7 +253,6 @@ class SpecProc(Process):
         m = Message('spectrum_ready')
         m.arguments["filename"] = fn
         self.send_msg(m)
-        #self.send_msg(resp_msg)
 
     def reset_acquisition(self):
         #Disable all acquisition

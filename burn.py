@@ -52,12 +52,12 @@ class Burn():
         self.running = True
 
         logging.info('main: warming up services')
-        time.sleep(4)
+        time.sleep(5)
 
         inputs = [self.fdn, self.fds]
 
         while self.running:
-            readable, _, exceptional = select.select(inputs, [], inputs)
+            readable, _, _ = select.select(inputs, [], [])
             for s in readable:
                 msg = s.recv()
                 if s is self.fdn:
@@ -76,12 +76,10 @@ class Burn():
             msg.command = 'close_ok'
             self.fdn.send(msg)
             self.running = False
-        elif msg.command == 'new_session':
+        elif msg.command == 'new_session' or msg.command == 'stop_session' or msg.command == 'set_gain':
             self.fds.send(msg)
-        elif msg.command == 'stop_session':
-            self.fds.send(msg)
-        elif msg.command == 'set_gain':
-            self.fds.send(msg)
+        else:
+            logging.warning('controller: unknown command: ' + msg.command)
 
     def dispatch_spec_msg(self, msg):
         self.fdn.send(msg)
