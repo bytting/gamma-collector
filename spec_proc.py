@@ -46,6 +46,7 @@ class GpsThread(threading.Thread):
         self.last_epy = 0
         self.last_alt = 0
         self.last_epv = 0
+        self.last_speed = 0
         self.last_eps = 0
         self.last_time = ''
 
@@ -71,7 +72,8 @@ class GpsThread(threading.Thread):
                     self.last_speed = self.gpsd.fix.speed
                 if not math.isnan(self.gpsd.fix.eps):
                     self.last_eps = self.gpsd.fix.eps
-                self.last_time = self.gpsd.fix.time
+                if self.gpsd.utc != None and self.gpsd.utc != '':
+                    self.last_time = self.gpsd.utc
 
         logging.info('gps: terminating')
 
@@ -231,10 +233,12 @@ class SpecProc(Process):
         resp_msg.arguments['altitude_start_err'] = self.gps_client.epv
         resp_msg.arguments['gps_speed_start'] = self.gps_client.speed
         resp_msg.arguments['gps_speed_start_err'] = self.gps_client.eps
-        resp_msg.arguments['gps_time_start'] = isotime(self.gps_client.time)
+        resp_msg.arguments['gps_time_start'] = self.gps_client.time
+
         logging.info(self.gps_client.time)
         self.run_acquisition(resp_msg, session_index)
-        resp_msg.arguments['gps_time_end'] = isotime(self.gps_client.time)
+
+        resp_msg.arguments['gps_time_end'] = self.gps_client.time
         resp_msg.arguments['latitude_end'] = self.gps_client.latitude
         resp_msg.arguments['latitude_end_err'] = self.gps_client.epx
         resp_msg.arguments['longitude_end'] = self.gps_client.longitude
@@ -243,7 +247,12 @@ class SpecProc(Process):
         resp_msg.arguments['altitude_end_err'] = self.gps_client.epv
         resp_msg.arguments['gps_speed_end'] = self.gps_client.speed
         resp_msg.arguments['gps_speed_end_err'] = self.gps_client.eps
-        self.send_msg(resp_msg)
+
+        fn = self.save_acquisition(resp_msg, session_index)
+        m = Message('spectrum_ready')
+        m.arguments["filename"] = fn
+        self.send_msg(m)
+        #self.send_msg(resp_msg)
 
     def reset_acquisition(self):
         #Disable all acquisition
@@ -287,9 +296,18 @@ class SpecProc(Process):
         msg.arguments["spectral_input"] = sd.getInput()
         msg.arguments["spectral_group"] = sd.getGroup()
         msg.arguments["spectral_status"] = Utilities.getStatusDescription(sd.getStatus())
-        #self.save_acquisition(sd, msg, session_index)
 
-    def save_acquisition(self, sd, msg, session_index):
+    def save_acquisition(self, msg, session_index):
+        session_name = msg.arguments['session_name']
+        session_dir = os.path.expanduser("~/ashes/") + session_name
+        if not os.path.isdir(session_dir):
+            os.makedirs(session_dir, 0777)
+        fname = session_dir + os.path.sep + str(session_index) + ".json"
+        with open(fname, "w") as f:
+            json.dump(msg.__dict__, f)
+        return fname
+
+    def save_acquisition_as_chn(self, sd, msg, session_index):
         session_name = msg.arguments['session_name']
         session_dir = os.path.expanduser("~/ashes/") + session_name
         if not os.path.isdir(session_dir):
@@ -301,4 +319,3 @@ class SpecProc(Process):
             f.write(hdr)
             int_array = array('L', chans)
             int_array.tofile(f)
-            f.close()

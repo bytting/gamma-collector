@@ -73,7 +73,12 @@ class NetProc(Process):
 
                 elif s is self.fd: # Incoming message from main controller
                     msg = s.recv()
-                    data = json.dumps(msg.__dict__) # Convert object to json
+                    if msg.command == 'spectrum_ready':
+                        with open(msg.arguments["filename"]) as jfd:
+                            m = json.load(jfd) # Load json from file
+                        data = json.dumps(m)
+                    else:
+                        data = json.dumps(msg.__dict__) # Convert object to json
                     netstring = struct.pack("!I", len(data)) + data # Serialize json
                     totlen, currlen = len(netstring), 0
                     while True:
