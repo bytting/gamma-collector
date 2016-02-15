@@ -73,27 +73,30 @@ class NetProc(Process):
 
                 elif s is self.fd: # Incoming message from main controller
                     msg = s.recv()
-                    if msg.command == 'spectrum_ready':
-                        with open(msg.arguments["filename"]) as jfd:
-                            m = json.load(jfd) # Load json from file
-                        data = json.dumps(m)
-                    else:
-                        data = json.dumps(msg.__dict__) # Convert object to json
-                    netstring = struct.pack("!I", len(data)) + data # Serialize json
-                    totlen, currlen = len(netstring), 0
-                    while True:
-                        # Send complete packet
-                        l = self.conn.send(netstring[currlen:])
-                        if l == 0:
-                            inputs.remove(self.conn)
-                            self.conn.close()
-                            logging.info('network: connection broken from ' + self.addr[0])
-                            break
-                        currlen += l
-                        if currlen >= totlen:
-                            break
                     if msg.command == 'close_ok': # main controller is closing
                         self._running = False
+                    else:
+                        data = ''
+                        if msg.command == 'spectrum_ready':
+                            with open(msg.arguments["filename"]) as jfd:
+                                m = json.load(jfd) # Load json from file
+                            data = json.dumps(m)
+                        else:
+                            data = json.dumps(msg.__dict__) # Convert object to json
+
+                        netstring = struct.pack("!I", len(data)) + data # Serialize json
+                        totlen, currlen = len(netstring), 0
+                        while True:
+                            # Send complete packet
+                            l = self.conn.send(netstring[currlen:])
+                            if l == 0:
+                                inputs.remove(self.conn)
+                                self.conn.close()
+                                logging.info('network: connection broken from ' + self.addr[0])
+                                break
+                            currlen += l
+                            if currlen >= totlen:
+                                break
 
                 else: # Incoming data from existing connection
                     try:
