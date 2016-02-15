@@ -224,7 +224,9 @@ class SpecProc(Process):
         resp_msg = copy.deepcopy(req_msg)
         resp_msg.command = 'get_spectrum_ok'
         resp_msg.arguments['session_index'] = session_index
+
         self.reset_acquisition()
+
         resp_msg.arguments['latitude_start'] = self.gps_client.latitude
         resp_msg.arguments['latitude_start_err'] = self.gps_client.epx
         resp_msg.arguments['longitude_start'] = self.gps_client.longitude
@@ -235,7 +237,6 @@ class SpecProc(Process):
         resp_msg.arguments['gps_speed_start_err'] = self.gps_client.eps
         resp_msg.arguments['gps_time_start'] = self.gps_client.time
 
-        logging.info(self.gps_client.time)
         self.run_acquisition(resp_msg, session_index)
 
         resp_msg.arguments['gps_time_end'] = self.gps_client.time
