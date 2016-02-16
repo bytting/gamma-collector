@@ -17,11 +17,12 @@
 #
 # Authors: Dag Robole,
 
-import os, fcntl 
+import os, fcntl
 
 def setblocking(fd, state):
     """
-    Set the blocking state of a file descriptor
+    Description:
+        Set the blocking state of a file descriptor
     """
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     if state:

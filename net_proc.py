@@ -22,7 +22,10 @@ from helpers import *
 from proto import *
 import struct, json, socket, select, sys, os, logging, errno
 
+# The host to bind to
 HOST = ''
+
+# The port to bind to
 PORT = 7000
 
 class NetProc(Process):
@@ -81,13 +84,13 @@ class NetProc(Process):
                         data = s.recv(1024)
                     except socket.error as e:
                         if e.errno == errno.ECONNRESET:
-                            # Unexpected disconnect from client
+                            # Unexpected disconnect from ground control
                             inputs.remove(s)
                             s.close()
                         logging.error('network: ' + self.addr[0] + ': ' + os.strerror(e.errno))
                         continue
                     if not data or data == '':
-                        # Unexpected disconnect from client
+                        # Unexpected disconnect from ground control
                         inputs.remove(s)
                         s.close()
                         logging.error('network: connection lost')

@@ -19,11 +19,16 @@
 
 class Message(object):
     """
-    Class used to store a protocol message
+    Description:
+        Class used to store a protocol message
     """
     def __init__(self, command='', arguments={}):
         """
-        Initialize message
+        Description:
+            Initialize message
+        Arguments:
+            command - (optional) A command as described by the protocol
+            arguments (optional) Map of valid arguments for the command
         """
         self.command = command
         self.arguments = arguments

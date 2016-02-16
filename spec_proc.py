@@ -136,7 +136,7 @@ class SessionThread(threading.Thread):
         Description:
             Initialize the session thread
         Arguments:
-            event - Event to notify exit
+            event - Event to notify session close
             target - Function running the detector
             msg - The session message containing info about this session
         """
@@ -152,7 +152,7 @@ class SessionThread(threading.Thread):
         """
         logging.info('session: starting')
         # Extract the session variables from the session message
-        delay = float(self._msg.arguments["delay"]) # Time to eait between each spectrum
+        delay = float(self._msg.arguments["delay"]) # Time to wait between each spectrum
         iterations = int(self._msg.arguments["iterations"]) # Number of spectrums to take
         infinite = iterations == -1 # If iterations is -1, run forever
         index = 0 # Keep track of spectrums (spectrum id)
@@ -163,7 +163,7 @@ class SessionThread(threading.Thread):
                 iterations = iterations - 1
                 if iterations < 0:
                     break
-            # Run the detector
+            # Run the detector once
             self._target(self._msg, index)
             index = index + 1
 
@@ -171,7 +171,7 @@ class SessionThread(threading.Thread):
 
 class SpecProc(Process):
     """
-    Process class for handling the gps and spectrometry
+    Process class for handling the gps and spectrometer
     """
     def __init__(self, fd):
         """
@@ -208,6 +208,8 @@ class SpecProc(Process):
         while(self.running):
             if self.fd.poll():
                 self.dispatch(self.fd.recv()) # Handle messages from the controller
+            else:
+                time.sleep(.1)
 
         # Cleanup and exit
         self.fd.close()
@@ -342,15 +344,15 @@ class SpecProc(Process):
         Description:
             Reset and initialize the detector
         """
-        #Disable all acquisition
+        # Disable all acquisition
         Utilities.disableAcquisition(self.dtb, self.input)
-        #Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
+        # Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
         self.dtb.setParameter(ParameterCodes.Input_Mode, 0, self.input)
-        #Setup presets
+        # Setup presets
         self.dtb.setParameter(ParameterCodes.Preset_Options, 1, self.input)
-        #Clear data and time
+        # Clear data and time
         self.dtb.control(CommandCodes.Clear, self.input)
-        #Set the current memory group
+        # Set the current memory group
         self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
 
     def run_acquisition(self, msg, session_index):

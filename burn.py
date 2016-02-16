@@ -31,7 +31,7 @@ class Burn():
 
     def __init__(self):
         """
-        initialize main controller
+        Initialize main controller
         """
         self.running = False
 
