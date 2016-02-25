@@ -252,10 +252,13 @@ class SpecProc(Process):
             self.running = False
         elif msg.command == 'new_session': # Start a new session
             msg.command = 'new_session_ok'
+            logging.info('spec: sending response new_session_ok')
             self.send_msg(msg)
             self.session_stop = threading.Event()
+            logging.info('spec: starting session thread')
             self.session = SessionThread(self.session_stop, self.run_acquisition_once, msg)
             self.session.start()
+            logging.info('spec: session thread started')
         elif msg.command == 'stop_session': # Stop any running sessions
             if not self.session_stop.isSet():
                 self.session_stop.set()
