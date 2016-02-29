@@ -2,6 +2,7 @@ import sys
 import socket
 import os
 import platform
+import logging
 
 def setup():    
     """
@@ -299,33 +300,40 @@ def disableAcquisition(dtb, input):
         none
     """
     
+    logging.info('disableAcquisition 1')
     exec "from ParameterCodes import *"
     exec "from CommandCodes import *"
     exec "from ParameterTypes import *"
     
+    logging.info('disableAcquisition 2')
     #Make sure the input is locked before attempting any operations
     dtb.lock("administrator", "password", input)
     
+    logging.info('disableAcquisition 3')
     #Stop acquisition
     try:
         dtb.control(CommandCodes.Stop, input)
     except:
         pass
+    logging.info('disableAcquisition 4')
     #Abort acquisition (only needed for MSS or MCS collections)
     try:
         dtb.control(CommandCodes.Abort, input)
     except:
         pass
+    logging.info('disableAcquisition 5')
     #Stop SCA collection
     try:
         dtb.setParameter(ParameterCodes.Input_SCAstatus, 0, input)
     except:
         pass
+    logging.info('disableAcquisition 6')
     #Stop Aux counter collection
     try:
         dtb.setParameter(ParameterCodes.Counter_Status, 0, input)
     except:
         pass
+    logging.info('disableAcquisition 7')
         
         
     

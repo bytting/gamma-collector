@@ -20,20 +20,21 @@
 from multiprocessing import Process
 from proto import *
 from gps import *
-#from datetime import datetime
 from struct import pack
 from array import array
 import os, sys, math, copy, time, socket, threading, logging
 
 # Import API for the detector
-import Utilities
-Utilities.setup()
+toolkitPath = os.getcwd() + os.path.sep + "../osprey"
+sys.path.append(toolkitPath)
 
 from DeviceFactory import *
 from ParameterCodes import *
 from CommandCodes import *
 from ParameterTypes import *
 from PhaData import *
+
+detector_interface_ip = "10.0.1.4"
 
 class GpsThread(threading.Thread):
     """
@@ -190,7 +191,7 @@ class SpecProc(Process):
         self.group = 1
         self.input = 1
         self.dtb = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
-        self.dtb.open("", Utilities.getLynxAddress())
+        self.dtb.open("", detector_interface_ip)
         logging.info('spec: using device ' + self.dtb.getParameter(ParameterCodes.Network_MachineName, 0))
         self.dtb.lock("administrator", "password", self.input)
 
@@ -252,10 +253,8 @@ class SpecProc(Process):
             self.running = False
         elif msg.command == 'new_session': # Start a new session
             msg.command = 'new_session_ok'
-            logging.info('spec: sending response new_session_ok')
             self.send_msg(msg)
             self.session_stop = threading.Event()
-            logging.info('spec: starting session thread')
             self.session = SessionThread(self.session_stop, self.run_acquisition_once, msg)
             self.session.start()
             logging.info('spec: session thread started')
@@ -348,15 +347,71 @@ class SpecProc(Process):
             Reset and initialize the detector
         """
         # Disable all acquisition
-        Utilities.disableAcquisition(self.dtb, self.input)
-        # Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
-        self.dtb.setParameter(ParameterCodes.Input_Mode, 0, self.input)
-        # Setup presets
-        self.dtb.setParameter(ParameterCodes.Preset_Options, 1, self.input)
-        # Clear data and time
-        self.dtb.control(CommandCodes.Clear, self.input)
-        # Set the current memory group
-        self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
+        #Utilities.disableAcquisition(self.dtb, self.input)
+
+        logging.info('reset_acquisition: lock...')
+        self.dtb.lock("administrator", "password", self.input)
+        #Stop acquisition
+        try:
+            logging.info('reset_acquisition: stop...')
+            self.dtb.control(CommandCodes.Stop, self.input)
+            #Abort acquisition (only needed for MSS or MCS collections)
+            logging.info('reset_acquisition: abort...')
+            self.dtb.control(CommandCodes.Abort, self.input)
+            #Stop SCA collection
+            logging.info('reset_acquisition: scastatus...')
+            self.dtb.setParameter(ParameterCodes.Input_SCAstatus, 0, self.input)
+            #Stop Aux counter collection
+            logging.info('reset_acquisition: counter status...')
+            self.dtb.setParameter(ParameterCodes.Counter_Status, 0, self.input)
+
+            # Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
+            logging.info('reset_acquisition: input mode...')
+            self.dtb.setParameter(ParameterCodes.Input_Mode, 0, self.input)
+            # Setup presets
+            logging.info('reset_acquisition: preset options...')
+            self.dtb.setParameter(ParameterCodes.Preset_Options, 1, self.input)
+            # Clear data and time
+            logging.info('reset_acquisition: clear...')
+            self.dtb.control(CommandCodes.Clear, self.input)
+            # Set the current memory group
+            logging.info('reset_acquisition: input current group...')
+            self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
+        except:
+            pass
+
+    def get_status_description(self, status):
+        """
+        Description:
+            This method will return a string that describes the
+            meaning of the various states contained in the status
+            parameter.
+        Arguments:
+            status (in, int) The status value
+        Return:
+            (String) The description
+        """
+        #exec "from ParameterTypes import *"
+        statMsg="Idle "
+        if (0 != (status&StatusBits.Busy)): statMsg="Busy "
+        if (0 != (status&StatusBits.APZinprog)): statMsg+="APZ "
+        if (0 != (status&StatusBits.Diagnosing)): statMsg+="Diagnosing "
+        if (0 != (status&StatusBits.ExternalTriggerEvent)): statMsg+="Ext trig "
+        if (0 != (status&StatusBits.Fault)): statMsg+="Fault "
+        if (0 != (status&StatusBits.GroupComplete)): statMsg+="Group complete "
+        if (0 != (status&StatusBits.HVramping)): statMsg+="HVPS ramping "
+        if (0 != (status&StatusBits.Idle)): statMsg+="Idle "
+        if (0 != (status&StatusBits.PresetCompReached)): statMsg+="Comp Preset reached "
+        if (0 != (status&StatusBits.PresetTimeReached)): statMsg+="Time Preset reached "
+        if (0 != (status&StatusBits.PresetSweepsReached)): statMsg+="Sweeps Preset reached "
+        if (0 != (status&StatusBits.Rebooting)): statMsg+="Rebooting "
+        if (0 != (status&StatusBits.UpdatingImage)): statMsg+="Updating firmware "
+        if (0 != (status&StatusBits.Waiting)): statMsg+="Waiting "
+        if (0 != (status&StatusBits.AcqNotStarted)): statMsg+="Acquisition not started because preset already reached "
+        if (0 != (status&StatusBits.OverflowStop)): statMsg+="Acquisition stopped because channel contents overflowed "
+        if (0 != (status&StatusBits.ExternalStop)): statMsg+="Acquisition stopped because of external stop "
+        if (0 != (status&StatusBits.ManualStop)): statMsg+="Acquisition stopped because of manual stop "
+        return statMsg
 
     def run_acquisition(self, msg, session_index):
         """
@@ -396,7 +451,7 @@ class SpecProc(Process):
         msg.arguments["computational_limit"] = sd.getComputationalValue()
         msg.arguments["spectral_input"] = sd.getInput()
         msg.arguments["spectral_group"] = sd.getGroup()
-        msg.arguments["spectral_status"] = Utilities.getStatusDescription(sd.getStatus())
+        msg.arguments["spectral_status"] = self.get_status_description(sd.getStatus())
 
     def save_acquisition(self, msg, session_index):
         """
