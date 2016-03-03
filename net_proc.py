@@ -75,7 +75,6 @@ class NetProc(Process):
                     inputs.append(self.conn)
                     self.buffer = ''
                     logging.info('network: connection received from ' + self.addr[0])
-                    logging.info('network: number of inputs: ' + str(len(inputs)))
 
                 elif s is self.fd: # Incoming message from main controller
                     self.dispatch_ctrl_msg(s.recv())
@@ -98,7 +97,6 @@ class NetProc(Process):
                         continue
                     else:
                         # Data successfully received, store in buffer
-                        logging.info('network: adding to buffer')
                         self.buffer += data
                         self.dispatch_net_msg()
 
@@ -118,8 +116,6 @@ class NetProc(Process):
         Arguments:
             msg - The controller message to dispatch
         """
-
-        logging.info('network: message from controller received: ' + msg.command)
 
         if msg.command == 'close_ok': # main controller is closing
             self._running = False
@@ -160,13 +156,11 @@ class NetProc(Process):
             # Extract message length
             msglen = struct.unpack("!I", self.buffer[0:4])[0]
             if len(self.buffer) < msglen+4:
-                logging.info('network: buffer not ready')
                 return
             # Extract rest of message and convert to object
             jmsg = json.loads(self.buffer[4:4+msglen])
             msg = Message(**jmsg)
             # Pass message to main controller
-            logging.info('network: passing on message from ether: ' + msg.command)
             self.fd.send(msg)
             # Update buffer
             self.buffer = self.buffer[4+msglen:]

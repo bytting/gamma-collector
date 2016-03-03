@@ -168,6 +168,7 @@ class SessionThread(threading.Thread):
             self._target(self._msg, index)
             index = index + 1
 
+        self._target(self._msg, -1)
         logging.info('session: terminating')
 
 class SpecProc(Process):
@@ -184,6 +185,7 @@ class SpecProc(Process):
         Process.__init__(self)
         self.fd = fd
         self.running = False
+        self.session_running = False
         self.send_lock = threading.Lock() # Lock used to syncronize sending of messages to controller
         self.gps_stop = threading.Event() # Event used to notify gps thread
         self.gps_client = GpsThread(self.gps_stop) # Create the gps thread
@@ -205,12 +207,22 @@ class SpecProc(Process):
 
         self.gps_client.start() # Start the gps
 
+        mips_counter = 100
+
         # Event loop
         while(self.running):
             if self.fd.poll():
                 self.dispatch(self.fd.recv()) # Handle messages from the controller
             else:
                 time.sleep(.1)
+
+                if not self.session_running:
+                    # Keep the detector alive.
+                    # Default session timeout for the detector is 600 seconds
+                    mips_counter = mips_counter - 1
+                    if mips_counter <= 0:
+                        mips_counter = 1000
+                        status = self.dtb.getParameter(ParameterCodes.Input_Status, self.input)
 
         # Cleanup and exit
         self.fd.close()
@@ -257,6 +269,7 @@ class SpecProc(Process):
             self.session_stop = threading.Event()
             self.session = SessionThread(self.session_stop, self.run_acquisition_once, msg)
             self.session.start()
+            self.session_running = True
             logging.info('spec: session thread started')
         elif msg.command == 'stop_session': # Stop any running sessions
             if not self.session_stop.isSet():
@@ -304,6 +317,12 @@ class SpecProc(Process):
         """
         # Prepare the response message
         resp_msg = copy.deepcopy(req_msg)
+        if session_index == -1:
+            resp_msg.command = 'session_close'
+            self.send_msg(resp_msg)
+            self.session_running = False
+            return
+
         resp_msg.command = 'spectrum'
         resp_msg.arguments['session_index'] = session_index
 
@@ -349,33 +368,24 @@ class SpecProc(Process):
         # Disable all acquisition
         #Utilities.disableAcquisition(self.dtb, self.input)
 
-        logging.info('reset_acquisition: lock...')
         self.dtb.lock("administrator", "password", self.input)
         #Stop acquisition
         try:
-            logging.info('reset_acquisition: stop...')
             self.dtb.control(CommandCodes.Stop, self.input)
             #Abort acquisition (only needed for MSS or MCS collections)
-            logging.info('reset_acquisition: abort...')
             self.dtb.control(CommandCodes.Abort, self.input)
             #Stop SCA collection
-            logging.info('reset_acquisition: scastatus...')
             self.dtb.setParameter(ParameterCodes.Input_SCAstatus, 0, self.input)
             #Stop Aux counter collection
-            logging.info('reset_acquisition: counter status...')
             self.dtb.setParameter(ParameterCodes.Counter_Status, 0, self.input)
 
             # Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
-            logging.info('reset_acquisition: input mode...')
             self.dtb.setParameter(ParameterCodes.Input_Mode, 0, self.input)
             # Setup presets
-            logging.info('reset_acquisition: preset options...')
             self.dtb.setParameter(ParameterCodes.Preset_Options, 1, self.input)
             # Clear data and time
-            logging.info('reset_acquisition: clear...')
             self.dtb.control(CommandCodes.Clear, self.input)
             # Set the current memory group
-            logging.info('reset_acquisition: input current group...')
             self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
         except:
             pass
