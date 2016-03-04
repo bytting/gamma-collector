@@ -1,3 +1,6 @@
+Add buffering of messages in net_proc and make it resistant to temporary disconnects
+
 Only allow one connected client
 
 Add command line parameters needed to start up without networking
+

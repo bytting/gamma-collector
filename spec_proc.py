@@ -25,7 +25,7 @@ from array import array
 import os, sys, math, copy, time, socket, threading, logging
 
 # Import API for the detector
-toolkitPath = os.getcwd() + os.path.sep + "../osprey"
+toolkitPath = os.getcwd() + os.path.sep + "../DataTypes"
 sys.path.append(toolkitPath)
 
 from DeviceFactory import *
