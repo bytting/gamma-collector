@@ -318,7 +318,7 @@ class SpecProc(Process):
 
         # If session_index is -1 the session is over
         if session_index == -1:
-            resp_msg.command = 'session_close'
+            resp_msg.command = 'session_finished'
             self.send_msg(resp_msg)
             self.session_running = False
             return
