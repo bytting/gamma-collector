@@ -204,10 +204,8 @@ class SpecProc(Process):
         """
         logging.info('spec: staring service')
         self.running = True
-
         self.gps_client.start() # Start the gps
-
-        mips_counter = 100
+        mips_counter = 1000
 
         # Event loop
         while(self.running):
@@ -267,7 +265,7 @@ class SpecProc(Process):
             msg.command = 'new_session_ok'
             self.send_msg(msg)
             self.session_stop = threading.Event()
-            self.session = SessionThread(self.session_stop, self.run_acquisition_once, msg)
+            self.session = SessionThread(self.session_stop, self.run_session_pass, msg)
             self.session.start()
             self.session_running = True
             logging.info('spec: session thread started')
@@ -307,7 +305,7 @@ class SpecProc(Process):
         self.dtb.setParameter(ParameterCodes.Input_CoarseGain, float(coarse_gain), self.input) # [1.0, 2.0, 4.0, 8.0]
         self.dtb.setParameter(ParameterCodes.Input_FineGain, float(fine_gain), self.input) # [1.0, 5.0]
 
-    def run_acquisition_once(self, req_msg, session_index):
+    def run_session_pass(self, req_msg, session_index):
         """
         Description:
             Gather info from gps and detector
@@ -317,6 +315,8 @@ class SpecProc(Process):
         """
         # Prepare the response message
         resp_msg = copy.deepcopy(req_msg)
+
+        # If session_index is -1 the session is over
         if session_index == -1:
             resp_msg.command = 'session_close'
             self.send_msg(resp_msg)
@@ -365,11 +365,6 @@ class SpecProc(Process):
         Description:
             Reset and initialize the detector
         """
-        # Disable all acquisition
-        #Utilities.disableAcquisition(self.dtb, self.input)
-
-        self.dtb.lock("administrator", "password", self.input)
-        #Stop acquisition
         try:
             self.dtb.control(CommandCodes.Stop, self.input)
             #Abort acquisition (only needed for MSS or MCS collections)
@@ -388,40 +383,7 @@ class SpecProc(Process):
             # Set the current memory group
             self.dtb.setParameter(ParameterCodes.Input_CurrentGroup, self.group, self.input)
         except:
-            pass
-
-    def get_status_description(self, status):
-        """
-        Description:
-            This method will return a string that describes the
-            meaning of the various states contained in the status
-            parameter.
-        Arguments:
-            status (in, int) The status value
-        Return:
-            (String) The description
-        """
-        #exec "from ParameterTypes import *"
-        statMsg="Idle "
-        if (0 != (status&StatusBits.Busy)): statMsg="Busy "
-        if (0 != (status&StatusBits.APZinprog)): statMsg+="APZ "
-        if (0 != (status&StatusBits.Diagnosing)): statMsg+="Diagnosing "
-        if (0 != (status&StatusBits.ExternalTriggerEvent)): statMsg+="Ext trig "
-        if (0 != (status&StatusBits.Fault)): statMsg+="Fault "
-        if (0 != (status&StatusBits.GroupComplete)): statMsg+="Group complete "
-        if (0 != (status&StatusBits.HVramping)): statMsg+="HVPS ramping "
-        if (0 != (status&StatusBits.Idle)): statMsg+="Idle "
-        if (0 != (status&StatusBits.PresetCompReached)): statMsg+="Comp Preset reached "
-        if (0 != (status&StatusBits.PresetTimeReached)): statMsg+="Time Preset reached "
-        if (0 != (status&StatusBits.PresetSweepsReached)): statMsg+="Sweeps Preset reached "
-        if (0 != (status&StatusBits.Rebooting)): statMsg+="Rebooting "
-        if (0 != (status&StatusBits.UpdatingImage)): statMsg+="Updating firmware "
-        if (0 != (status&StatusBits.Waiting)): statMsg+="Waiting "
-        if (0 != (status&StatusBits.AcqNotStarted)): statMsg+="Acquisition not started because preset already reached "
-        if (0 != (status&StatusBits.OverflowStop)): statMsg+="Acquisition stopped because channel contents overflowed "
-        if (0 != (status&StatusBits.ExternalStop)): statMsg+="Acquisition stopped because of external stop "
-        if (0 != (status&StatusBits.ManualStop)): statMsg+="Acquisition stopped because of manual stop "
-        return statMsg
+            logging.error('spec: reset_acquisition failed')
 
     def run_acquisition(self, msg, session_index):
         """
@@ -454,14 +416,13 @@ class SpecProc(Process):
 
         # Add spectrum data to the response message
         msg.arguments["channels"] = channel_string.strip()
-        msg.arguments["channel_count"] = len(chans)
-        msg.arguments["uncorrected_total_count"] = total_count
+        msg.arguments["num_channels"] = len(chans)
+        msg.arguments["total_count"] = total_count
         msg.arguments["livetime"] = sd.getLiveTime()
         msg.arguments["realtime"] = sd.getRealTime()
         msg.arguments["computational_limit"] = sd.getComputationalValue()
         msg.arguments["spectral_input"] = sd.getInput()
         msg.arguments["spectral_group"] = sd.getGroup()
-        msg.arguments["spectral_status"] = self.get_status_description(sd.getStatus())
 
     def save_acquisition(self, msg, session_index):
         """

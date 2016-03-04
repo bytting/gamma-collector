@@ -7,3 +7,5 @@ Dependencies:
 - Canberra Osprey SDK V1.0.1
 
 This software is part of a drone project at Norwegian Radiation Protection Authority (NRPA)
+
+Status: Development
