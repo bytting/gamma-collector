@@ -44,6 +44,7 @@ class NetProc(Process):
         self.conn, self.addr = None, None
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setblocking(0)
+        self.connected = False
         self.buffer = ''
         try:
             self.sock.bind((HOST, PORT))
@@ -73,6 +74,7 @@ class NetProc(Process):
                     self.conn, self.addr = s.accept()
                     self.conn.setblocking(0)
                     inputs.append(self.conn)
+                    self.connected = True
                     self.buffer = ''
                     logging.info('network: connection received from ' + self.addr[0])
 
@@ -87,12 +89,14 @@ class NetProc(Process):
                             # Unexpected disconnect from ground control
                             inputs.remove(s)
                             s.close()
+                            self.connected = False
                         logging.error('network: ' + self.addr[0] + ': ' + os.strerror(e.errno))
                         continue
                     if not data or data == '':
                         # Unexpected disconnect from ground control
                         inputs.remove(s)
                         s.close()
+                        self.connected = False
                         logging.error('network: connection lost')
                         continue
                     else:
@@ -120,6 +124,15 @@ class NetProc(Process):
         if msg.command == 'close_ok': # main controller is closing
             self._running = False
 
+        if not self.is_connected():
+            """
+            Skip the package if we are not connected.
+            Maybe replace this with package buffering and resend on reconnect (TODO)
+            """
+            logging.warning("Skipping package " + msg.command + " since not connected")
+            return
+
+        logging.info("Sending package " + msg.command + " to remote host")
         data = ''
         if msg.command == 'spectrum_ready': # Meta message
             # 'spectrum_ready' is a meta message indicating that a response message is stored on disk
@@ -139,6 +152,7 @@ class NetProc(Process):
             if l == 0:
                 inputs.remove(self.conn)
                 self.conn.close()
+                self.connected = False
                 logging.info('network: connection broken from ' + self.addr[0])
                 break
             currlen += l
@@ -171,3 +185,10 @@ class NetProc(Process):
             Return wether the net process is still running
         """
         return self._running
+
+    def is_connected(self):
+        """
+        Description:
+            Return wether the net process is connected
+        """
+        return self.connected
