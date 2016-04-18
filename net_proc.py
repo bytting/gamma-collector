@@ -138,10 +138,13 @@ class NetProc(Process):
             # 'spectrum_ready' is a meta message indicating that a response message is stored on disk
             # The path to the file is stored in msg.arguments['filename']
             with open(msg.arguments["filename"]) as jfd:
-                m = json.load(jfd) # Load json from file
-            data = json.dumps(m)
+                data = json.dumps(json.load(jfd)) # Load json from file
         else: # Regular message
             data = json.dumps(msg.__dict__) # Convert object to json
+
+        if data == None or data == '':
+            logging.error('Trying to send an empty package')
+            return
 
         # Serialize the message into a netstring
         netstring = struct.pack("!I", len(data)) + data
