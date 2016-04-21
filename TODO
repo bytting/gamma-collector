@@ -7,3 +7,5 @@ Add command line parameters needed to start up without networking
 Finish systemd scripts and auto bootstrap
 
 Make spec_proc independant to make it easier to add support for more detector types
+
+Don't save previews to file
