@@ -9,3 +9,5 @@ Finish systemd scripts and auto bootstrap
 Make spec_proc independant to make it easier to add support for more detector types
 
 Don't save previews to file
+
+Use select to send network data packets only when network buffer has space
