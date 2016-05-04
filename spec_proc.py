@@ -25,7 +25,8 @@ from array import array
 import os, sys, math, copy, time, socket, threading, logging
 
 # Import API for the detector
-toolkitPath = os.getcwd() + os.path.sep + "../DataTypes"
+#toolkitPath = os.getcwd() + os.path.sep + "../DataTypes"
+toolkitPath = "/home/drb/dev/py/DataTypes"
 sys.path.append(toolkitPath)
 
 from DeviceFactory import *

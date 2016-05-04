@@ -1,0 +1,8 @@
+[Unit]
+Description="My setup service"
+
+[Service]
+ExecStart=/home/drb/mysetup.sh
+
+[Install]
+WantedBy=multi-user.target
