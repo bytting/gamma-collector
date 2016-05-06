@@ -1,0 +1,9 @@
+[Unit]
+Description="system drone setup service"
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/sleep 5 ; /usr/bin/ip addr add 10.0.1.10/24 broadcast 10.0.1.255 dev eth1 ; /usr/bin/gpsd /dev/ttyUSB0
+
+[Install]
+WantedBy=multi-user.target
