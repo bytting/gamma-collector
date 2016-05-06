@@ -21,14 +21,14 @@ user names and symlinks to python binaries, so make sure to modify them accordin
 
 1. override.conf
 
-   Copy this file to /etc/systemd/system/getty@tty1.service.d/override.conf to enable auto login.
+   Copy this file to ``/etc/systemd/system/getty@tty1.service.d/override.conf`` to enable auto login.
 
 2. drone-setup-system.service
 
-   Copy this file to /etc/systemd/system/drone-setup-system.service and enable it using systemctl:  
+   Copy this file to ``/etc/systemd/system/drone-setup-system.service`` and enable it using systemctl:  
    `sudo systemctl enable drone-setup-system.service`
 
 3. drone-setup-local.service
 
-   Copy this file to $(HOME)/.config/systemd/user/drone-setup-local.service and enable it with systemctl:  
+   Copy this file to ``$(HOME)/.config/systemd/user/drone-setup-local.service`` and enable it with systemctl:  
    `systemctl --user enable drone-setup-local.service`
