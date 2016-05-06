@@ -35,7 +35,7 @@ class Burn():
         """
         self.running = False
 
-        # Create pipes for message passing between gps_proc and spec_proc
+        # Create pipes for message passing between spec_proc and net_proc
         fds_pass, self.fds = Pipe()
         fdn_pass, self.fdn = Pipe()
 
