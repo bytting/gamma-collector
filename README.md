@@ -26,9 +26,12 @@ user names and symlinks to python binaries, so make sure to modify them accordin
 2. drone-setup-system.service
 
    Copy this file to ``/etc/systemd/system/drone-setup-system.service`` and enable it using systemctl:  
-   `sudo systemctl enable drone-setup-system.service`
+   `# systemctl enable drone-setup-system.service`
 
 3. drone-setup-local.service
 
    Copy this file to ``$(HOME)/.config/systemd/user/drone-setup-local.service`` and enable it with systemctl:  
-   `systemctl --user enable drone-setup-local.service`
+   `$ systemctl --user enable drone-setup-local.service`
+
+Given a successful configuration, burn will be listening on TCP port 7000 after booting up 
+the system
