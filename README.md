@@ -3,14 +3,15 @@ Daemon running on Raspberry Pi (archlinuxarm), controlling a Canberra Osprey gam
 
 Acquisitions and measurements are merged, saved to disk and optionally transferred over a TCP connection to the controlling application, crash.
 
+This software is part of a drone project at Norwegian Radiation Protection Authority (NRPA)
+
+### Status
+   Development
+
 ### Dependencies
 1. Python 2
 2. Canberra Osprey SDK V1.0.1
 3. gpsd
-
-This software is part of a drone project at Norwegian Radiation Protection Authority (NRPA)
-
-Status: Development
 
 ### Installing
 
