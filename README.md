@@ -30,8 +30,13 @@ user names and symlinks to python binaries, so make sure to modify them accordin
 
 3. drone-setup-local.service
 
-   Copy this file to ``$(HOME)/.config/systemd/user/drone-setup-local.service`` and enable it with systemctl:  
+   Copy this file to ``$(HOME)/.config/systemd/user/drone-setup-local.service`` and enable it using systemctl:  
    `$ systemctl --user enable drone-setup-local.service`
 
 Given a successful configuration, burn will be listening on TCP port 7000 after booting up 
-the system
+the system.
+
+Sessions will be stored locally under the directory ``$(HOME)/ashes``
+
+Note that the python script burn.py contains a hash-bang reference to python2, this may be necessary to change when running on 
+other systems than ArchlinuxARM.
