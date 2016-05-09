@@ -33,6 +33,9 @@ user names and symbolic links to python binaries, so make sure to modify them ac
    Copy this file to ``$(HOME)/.config/systemd/user/drone-setup-local.service`` and enable it using systemctl:  
    `$ systemctl --user enable drone-setup-local.service`
 
+The Osprey SDK contains a "DataTypes" directory containing the python modules to manage the detector.
+Copy this directory to the parent directory of of the burn source, so that burn.py will find it as "../DataTypes"
+
 Given a successful configuration, burn will be listening on TCP port 7000 after booting up
 the system.
 
