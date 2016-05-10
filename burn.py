@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+
 # Controller for a Canberra Osprey gamma detector
 # Copyright (C) 2016  Norwegain Radiation Protection Authority
 #
@@ -117,6 +117,7 @@ class Burn():
         logging.info('ctrl: terminating')
 
 if __name__ == '__main__':
+    time.sleep(10)
     #try:
     #logpath = os.path.expanduser("/var/log/")
     #now = datetime.now()

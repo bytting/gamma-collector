@@ -1,9 +1,11 @@
 [Unit]
-Description="drone setup system service"
+Description="system drone setup service"
+After=network-online.target NetworkManager-wait-online.service
+Wants=network-online.target NetworkManager-wait-online.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/sleep 5 ; /usr/bin/ip addr add 10.0.1.10/24 broadcast 10.0.1.255 dev eth1 ; /usr/bin/gpsd /dev/ttyUSB0
+ExecStart=/usr/bin/ip addr add 10.0.1.10/24 broadcast 10.0.1.255 dev eth1 ; /usr/bin/gpsd /dev/ttyUSB0
 
 [Install]
 WantedBy=multi-user.target
