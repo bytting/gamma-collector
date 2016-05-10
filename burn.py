@@ -60,10 +60,6 @@ class Burn():
         """
         self.running = True
 
-        # Wait for gps to start up
-        logging.info('ctrl: warming up services')
-        time.sleep(5)
-
         # Prepare file descriptors for selection
         inputs = [self.fdn, self.fds]
 
@@ -117,7 +113,9 @@ class Burn():
         logging.info('ctrl: terminating')
 
 if __name__ == '__main__':
-    time.sleep(10)
+    # Sleep a while to let network interfaces settle (FIXME)
+    time.sleep(5)
+
     #try:
     #logpath = os.path.expanduser("/var/log/")
     #now = datetime.now()
