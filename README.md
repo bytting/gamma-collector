@@ -1,5 +1,5 @@
 # burn
-Daemon running on Raspberry Pi (archlinuxarm), controlling a Canberra Osprey gamma detector and a G-Star IV GPS device.
+Daemon running on Raspberry Pi (raspbian), controlling a Canberra Osprey gamma detector and a G-Star IV GPS device.
 
 Acquisitions and measurements are merged, saved to disk and optionally transferred over a TCP connection to the controlling application, crash.
 
@@ -44,5 +44,3 @@ the system.
 
 Sessions will be stored locally under the directory ``$(HOME)/ashes``
 
-Note that the python script burn.py contains a hash-bang reference to python2, this may need to be changed when running on 
-other systems than ArchlinuxARM.
