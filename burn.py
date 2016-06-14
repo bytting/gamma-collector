@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 # Controller for a Canberra Osprey gamma detector
 # Copyright (C) 2016  Norwegain Radiation Protection Authority
 #
