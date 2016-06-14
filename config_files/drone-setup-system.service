@@ -5,7 +5,7 @@ Wants=network-online.target NetworkManager.service NetworkManager-wait-online.se
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/ip addr add 10.0.1.10/24 broadcast 10.0.1.255 dev eth1 ; /usr/bin/gpsd /dev/ttyUSB0
+ExecStart=/bin/ip addr add 10.0.1.10/24 broadcast 10.0.1.255 dev eth1 ; /usr/sbin/gpsd /dev/ttyUSB0
 
 [Install]
 WantedBy=multi-user.target
