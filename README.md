@@ -16,6 +16,8 @@ This software is part of a drone project at Norwegian Radiation Protection Autho
 
 ### Installing
 
+Configure gpsd (/etc/defaults/gpsd) to use /dev/ttyUSB0 (adjust this as appropriate)
+
 The directory config_files contains three systemd specific files that should be used to enable auto login
 and configuration of the detector and the GPS device. These files contain system specific directories,
 user names and symbolic links to python binaries, so make sure to modify them accordingly.
