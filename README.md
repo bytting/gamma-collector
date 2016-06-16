@@ -1,5 +1,5 @@
 # burn
-Daemon running on Raspberry Pi (raspbian), controlling a Canberra Osprey gamma detector and a G-Star IV GPS device.
+Daemon running on Raspberry Pi (archlinuxarm), controlling a Canberra Osprey gamma detector and a G-Star IV GPS device.
 
 Acquisitions and measurements are merged, saved to disk and optionally transferred over a TCP connection to the controlling application, crash.
 
@@ -15,8 +15,6 @@ This software is part of a drone project at Norwegian Radiation Protection Autho
 4. gpsd
 
 ### Installing
-
-Configure gpsd (/etc/defaults/gpsd) to use /dev/ttyUSB0 (adjust this as appropriate)
 
 The directory config_files contains three systemd specific files that should be used to enable auto login
 and configuration of the detector and the GPS device. These files contain system specific directories,
@@ -44,3 +42,5 @@ the system.
 
 Sessions will be stored locally under the directory ``$(HOME)/ashes``
 
+Note that the python script burn.py contains a hash-bang reference to python2, this may need to be changed when running on 
+other systems than ArchlinuxARM.

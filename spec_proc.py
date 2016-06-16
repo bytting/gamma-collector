@@ -19,6 +19,7 @@
 
 from multiprocessing import Process
 from proto import *
+from gps import *
 from struct import pack
 from array import array
 import os, sys, math, copy, time, socket, threading, logging
@@ -34,6 +35,98 @@ from ParameterTypes import *
 from PhaData import *
 
 detector_interface_ip = "10.0.1.4"
+
+class GpsThread(threading.Thread):
+    """
+    Thread class to handle the gps driver
+    """
+    def __init__(self, event):
+        """
+        Description:
+            Initialize the gps thread
+        """
+        threading.Thread.__init__(self)
+        self._stopped = event
+        self.gpsd = gps(mode=WATCH_ENABLE)
+        self.last_lat = 0
+        self.last_epx = 0
+        self.last_lon = 0
+        self.last_epy = 0
+        self.last_alt = 0
+        self.last_epv = 0
+        self.last_speed = 0
+        self.last_eps = 0
+        self.last_time = ''
+
+    def run(self):
+        """
+        Description:
+            Entry point for the gps thread
+        """
+        logging.info('gps: starting service')
+
+        # Process any buffered gps signals every .3 seconds
+        while not self._stopped.wait(0.3):
+
+            # Update our last measurement until buffer is empty
+            while self.gpsd.waiting():
+                self.gpsd.next()
+                if not math.isnan(self.gpsd.fix.latitude):
+                    self.last_lat = self.gpsd.fix.latitude
+                if not math.isnan(self.gpsd.fix.epx):
+                    self.last_epx = self.gpsd.fix.epx
+                if not math.isnan(self.gpsd.fix.longitude):
+                    self.last_lon = self.gpsd.fix.longitude
+                if not math.isnan(self.gpsd.fix.epy):
+                    self.last_epy = self.gpsd.fix.epy
+                if not math.isnan(self.gpsd.fix.altitude):
+                    self.last_alt = self.gpsd.fix.altitude
+                if not math.isnan(self.gpsd.fix.epv):
+                    self.last_epv = self.gpsd.fix.epv
+                if not math.isnan(self.gpsd.fix.speed):
+                    self.last_speed = self.gpsd.fix.speed
+                if not math.isnan(self.gpsd.fix.eps):
+                    self.last_eps = self.gpsd.fix.eps
+                if self.gpsd.utc != None and self.gpsd.utc != '':
+                    self.last_time = self.gpsd.utc
+
+        logging.info('gps: terminating')
+
+    @property
+    def latitude(self):
+        return self.last_lat
+
+    @property
+    def epx(self):
+        return self.last_epx
+
+    @property
+    def longitude(self):
+        return self.last_lon
+
+    @property
+    def epy(self):
+        return self.last_epy
+
+    @property
+    def altitude(self):
+        return self.last_alt
+
+    @property
+    def epv(self):
+        return self.last_epv
+
+    @property
+    def speed(self):
+        return self.last_speed
+
+    @property
+    def eps(self):
+        return self.last_eps
+
+    @property
+    def time(self):
+        return self.last_time
 
 class SessionThread(threading.Thread):
     """
@@ -82,21 +175,20 @@ class SpecProc(Process):
     """
     Process class for handling the gps and spectrometer
     """
-    def __init__(self, fd, gps_client):
+    def __init__(self, fd):
         """
         Description:
             Initialize the spectrometer process
         Arguments:
             fd - file descriptor to pass and receive messages to/from controller
-            gps_client - gps module
         """
         Process.__init__(self)
         self.fd = fd
         self.running = False
         self.session_running = False
         self.send_lock = threading.Lock() # Lock used to syncronize sending of messages to controller
-        self.gps_client = gps_client
-
+        self.gps_stop = threading.Event() # Event used to notify gps thread
+        self.gps_client = GpsThread(self.gps_stop) # Create the gps thread
         # Initalize the detector
         self.group = 1
         self.input = 1
@@ -112,6 +204,7 @@ class SpecProc(Process):
         """
         logging.info('spec: staring service')
         self.running = True
+        self.gps_client.start() # Start the gps
         mips_counter = 1000
 
         # Event loop
@@ -131,6 +224,8 @@ class SpecProc(Process):
 
         # Cleanup and exit
         self.fd.close()
+        self.gps_stop.set()
+        self.gps_client.join()
         logging.info('spec: GPS client stopped')
         logging.info('spec: terminating')
 
@@ -235,21 +330,29 @@ class SpecProc(Process):
         self.reset_acquisition()
 
         # Gather gps info before running the detector
-        resp_msg.arguments['latitude_start'], resp_msg.arguments['latitude_start_err'],
-        resp_msg.arguments['longitude_start'], resp_msg.arguments['longitude_start_err'],
-        resp_msg.arguments['altitude_start'], resp_msg.arguments['altitude_start_err'],
-        resp_msg.arguments['gps_speed_start'], resp_msg.arguments['gps_speed_start_err'],
-        resp_msg.arguments['gps_time_start'] = self.gps_client.get_fix()
+        resp_msg.arguments['latitude_start'] = self.gps_client.latitude
+        resp_msg.arguments['latitude_start_err'] = self.gps_client.epx
+        resp_msg.arguments['longitude_start'] = self.gps_client.longitude
+        resp_msg.arguments['longitude_start_err'] = self.gps_client.epy
+        resp_msg.arguments['altitude_start'] = self.gps_client.altitude
+        resp_msg.arguments['altitude_start_err'] = self.gps_client.epv
+        resp_msg.arguments['gps_speed_start'] = self.gps_client.speed
+        resp_msg.arguments['gps_speed_start_err'] = self.gps_client.eps
+        resp_msg.arguments['gps_time_start'] = self.gps_client.time
 
         # Run the detector
         self.run_acquisition(resp_msg, session_index)
 
         # Gather gps info after running the detector
-        resp_msg.arguments['gps_time_end'], resp_msg.arguments['latitude_end'],
-        resp_msg.arguments['latitude_end_err'], resp_msg.arguments['longitude_end'],
-        resp_msg.arguments['longitude_end_err'], resp_msg.arguments['altitude_end'],
-        resp_msg.arguments['altitude_end_err'], resp_msg.arguments['gps_speed_end'],
-        resp_msg.arguments['gps_speed_end_err'] = self.gps_client.get_fix()
+        resp_msg.arguments['gps_time_end'] = self.gps_client.time
+        resp_msg.arguments['latitude_end'] = self.gps_client.latitude
+        resp_msg.arguments['latitude_end_err'] = self.gps_client.epx
+        resp_msg.arguments['longitude_end'] = self.gps_client.longitude
+        resp_msg.arguments['longitude_end_err'] = self.gps_client.epy
+        resp_msg.arguments['altitude_end'] = self.gps_client.altitude
+        resp_msg.arguments['altitude_end_err'] = self.gps_client.epv
+        resp_msg.arguments['gps_speed_end'] = self.gps_client.speed
+        resp_msg.arguments['gps_speed_end_err'] = self.gps_client.eps
 
         # Save acquisition to file and send a meta message to controller
         fn = self.save_acquisition(resp_msg, session_index)

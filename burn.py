@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # Controller for a Canberra Osprey gamma detector
 # Copyright (C) 2016  Norwegain Radiation Protection Authority
 #
@@ -20,13 +20,12 @@
 
 from __future__ import print_function
 from proto import *
-from gps_thread import GpsThread
 from spec_proc import SpecProc
 from net_proc import NetProc
 from multiprocessing import Pipe
 from datetime import datetime
 from helpers import *
-import time, sys, os, select, threading, logging
+import time, sys, os, select, logging
 
 class Burn():
 
@@ -35,10 +34,6 @@ class Burn():
         Initialize main controller
         """
         self.running = False
-
-        self.gps_stop = threading.Event() # Event used to notify gps thread
-        self.gps_client = GpsThread(self.gps_stop) # Create the gps thread
-        self.gps_client.start() # Start the gps
 
         # Create pipes for message passing between spec_proc and net_proc
         fds_pass, self.fds = Pipe()
@@ -49,7 +44,7 @@ class Burn():
         setblocking(self.fdn, 0)
 
         # Create and start child processes
-        self.s = SpecProc(fds_pass, gps_client)
+        self.s = SpecProc(fds_pass)
         self.n = NetProc(fdn_pass)
         self.s.start()
         self.n.start()
@@ -114,9 +109,6 @@ class Burn():
 
         self.s.join()
         self.n.join()
-
-        self.gps_stop.set()
-        self.gps_client.join()
 
         logging.info('ctrl: terminating')
 
