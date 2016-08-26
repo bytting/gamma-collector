@@ -255,7 +255,10 @@ class SpecProc(Process):
             voltage = msg.arguments["voltage"]
             coarse = msg.arguments["coarse_gain"]
             fine = msg.arguments["fine_gain"]
-            self.stabilize_probe(voltage, coarse, fine)
+            num_channels = msg.arguments["num_channels"]
+            lld = msg.arguments["lld"]
+            uld = msg.arguments["uld"]
+            self.stabilize_probe(voltage, coarse, fine, num_channels, lld, uld)
             logging.info('spec: gain has been set')
             msg.command = 'set_gain_ok' # Notify ground control that gain has been set
             self.send_msg(msg)
@@ -280,7 +283,7 @@ class SpecProc(Process):
             # Unknown command received from controller
             logging.warning('spec: unknown command ' + cmd.command)
 
-    def stabilize_probe(self, voltage, coarse_gain, fine_gain):
+    def stabilize_probe(self, voltage, coarse_gain, fine_gain, num_channels, lld, uld):
         """
         Description:
             Set gain parameters for the detector
@@ -304,6 +307,11 @@ class SpecProc(Process):
         # Set coarse and fine gain
         self.dtb.setParameter(ParameterCodes.Input_CoarseGain, float(coarse_gain), self.input) # [1.0, 2.0, 4.0, 8.0]
         self.dtb.setParameter(ParameterCodes.Input_FineGain, float(fine_gain), self.input) # [1.0, 5.0]
+        self.dtb.setParameter(ParameterCodes.Input_NumberOfChannels, int(num_channels), self.input)
+        self.dtb.setParameter(ParameterCodes.Input_LLDmode, 1, self.input)
+        self.dtb.setParameter(ParameterCodes.Input_LLD, float(lld), self.input)
+        self.dtb.setParameter(ParameterCodes.Input_ULD, float(uld), self.input)
+        logging.warning('lld: ' + str(lld))
 
     def run_session_pass(self, req_msg, session_index):
         """
