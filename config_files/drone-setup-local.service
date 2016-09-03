@@ -3,8 +3,8 @@ Description="drone setup local service"
 
 [Service]
 Type=simple
-WorkingDirectory=/home/drb/dev/py/burn
-ExecStart=/usr/bin/python2 /home/drb/dev/py/burn/burn.py
+WorkingDirectory=/home/alarm/dev/py/burn
+ExecStart=/usr/bin/python2 /home/alarm/dev/py/burn/burn.py
 
 [Install]
 WantedBy=default.target

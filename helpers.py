@@ -23,6 +23,9 @@ def setblocking(fd, state):
     """
     Description:
         Set the blocking state of a file descriptor
+    Arguments:
+        fd - File descriptor
+        state - New blocking state of the file descriptor
     """
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     if state:
