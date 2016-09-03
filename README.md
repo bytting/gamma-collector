@@ -11,7 +11,7 @@ This software is part of a drone project at Norwegian Radiation Protection Autho
 ### Dependencies
 1. Network Manager
 2. Python 2
-3. Canberra Osprey SDK V1.0.1
+3. Canberra Osprey SDK V1.0.1 (Proprietary)
 4. gpsd
 
 ### Installing

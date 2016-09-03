@@ -205,7 +205,7 @@ class SpecProc(Process):
         logging.info('spec: staring service')
         self.running = True
         self.gps_client.start() # Start the gps
-        mips_counter = 1000
+        keepalive_counter = 1000
 
         # Event loop
         while(self.running):
@@ -217,9 +217,9 @@ class SpecProc(Process):
                 if not self.session_running:
                     # Keep the detector alive.
                     # Default session timeout for the detector is 600 seconds
-                    mips_counter = mips_counter - 1
-                    if mips_counter <= 0:
-                        mips_counter = 1000
+                    keepalive_counter = keepalive_counter - 1
+                    if keepalive_counter <= 0:
+                        keepalive_counter = 1000
                         status = self.dtb.getParameter(ParameterCodes.Input_Status, self.input)
 
         # Cleanup and exit
@@ -291,6 +291,9 @@ class SpecProc(Process):
             voltage - The voltage level
             coarse_gain - The coarse gain level
             fine_gain - The fine gain level
+            num_channels - The number of channels used for a spectrum
+            lld - Lower level discriminator
+            uld - Upper level discriminator
         """
         # Osprey API constants
         Stabilized_Probe_Bussy = 0x00080000
@@ -308,10 +311,9 @@ class SpecProc(Process):
         self.dtb.setParameter(ParameterCodes.Input_CoarseGain, float(coarse_gain), self.input) # [1.0, 2.0, 4.0, 8.0]
         self.dtb.setParameter(ParameterCodes.Input_FineGain, float(fine_gain), self.input) # [1.0, 5.0]
         self.dtb.setParameter(ParameterCodes.Input_NumberOfChannels, int(num_channels), self.input)
-        self.dtb.setParameter(ParameterCodes.Input_LLDmode, 1, self.input)
+        self.dtb.setParameter(ParameterCodes.Input_LLDmode, 1, self.input) # Set manual LLD mode
         self.dtb.setParameter(ParameterCodes.Input_LLD, float(lld), self.input)
         self.dtb.setParameter(ParameterCodes.Input_ULD, float(uld), self.input)
-        logging.warning('lld: ' + str(lld))
 
     def run_session_pass(self, req_msg, session_index):
         """

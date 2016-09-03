@@ -114,7 +114,7 @@ class Burn():
 
 if __name__ == '__main__':
     # Sleep a while to let network interfaces settle (FIXME)
-    time.sleep(5)
+    time.sleep(20)
 
     #try:
     #logpath = os.path.expanduser("/var/log/")
