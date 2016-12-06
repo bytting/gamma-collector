@@ -3,8 +3,8 @@ Description="drone setup local service"
 
 [Service]
 Type=simple
-WorkingDirectory=/home/alarm/dev/py/burn
-ExecStart=/usr/bin/python2 /home/alarm/dev/py/burn/burn.py
+WorkingDirectory=/home/alarm/dev/py/gamma-collector
+ExecStart=/usr/bin/python2 /home/alarm/dev/py/gamma-collector/burn.py
 
 [Install]
 WantedBy=default.target
