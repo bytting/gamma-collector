@@ -25,12 +25,12 @@ user names and symbolic links to python binaries, so make sure to modify them ac
 
 2. drone-setup-system.service
 
-   Copy this file to ``/etc/systemd/system/drone-setup-system.service`` and enable it using systemctl:
+   Copy this file to ``/etc/systemd/system/drone-setup-system.service`` and enable it using systemctl:  
    `# systemctl enable drone-setup-system.service`
 
 3. drone-setup-local.service
 
-   Copy this file to ``$(HOME)/.config/systemd/user/drone-setup-local.service`` and enable it using systemctl:
+   Copy this file to ``$(HOME)/.config/systemd/user/drone-setup-local.service`` and enable it using systemctl:  
    `$ systemctl --user enable drone-setup-local.service`
 
 The Osprey SDK contains a "DataTypes" directory containing the python modules to manage the detector.
