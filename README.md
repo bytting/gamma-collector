@@ -1,7 +1,7 @@
-# burn
+# gamma-collector
 Daemon running on Raspberry Pi (archlinuxarm), controlling a Canberra Osprey gamma detector and a G-Star IV GPS device.
 
-Acquisitions and measurements are merged, saved to disk and optionally transferred over a TCP connection to the controlling application, crash.
+Acquisitions and measurements are merged, saved to disk and optionally transferred over a TCP connection to the controlling application, gamma-analyzer.
 
 This software is part of a drone project at Norwegian Radiation Protection Authority (NRPA)
 
@@ -9,10 +9,9 @@ This software is part of a drone project at Norwegian Radiation Protection Autho
    Development
 
 ### Dependencies
-1. Network Manager
-2. Python 2
-3. Canberra Osprey SDK V1.0.1 (Proprietary)
-4. gpsd
+1. Python 2
+2. Canberra Osprey SDK V1.0.1 (Proprietary)
+3. gpsd
 
 ### Installing
 
@@ -26,21 +25,21 @@ user names and symbolic links to python binaries, so make sure to modify them ac
 
 2. drone-setup-system.service
 
-   Copy this file to ``/etc/systemd/system/drone-setup-system.service`` and enable it using systemctl:  
+   Copy this file to ``/etc/systemd/system/drone-setup-system.service`` and enable it using systemctl:
    `# systemctl enable drone-setup-system.service`
 
 3. drone-setup-local.service
 
-   Copy this file to ``$(HOME)/.config/systemd/user/drone-setup-local.service`` and enable it using systemctl:  
+   Copy this file to ``$(HOME)/.config/systemd/user/drone-setup-local.service`` and enable it using systemctl:
    `$ systemctl --user enable drone-setup-local.service`
 
 The Osprey SDK contains a "DataTypes" directory containing the python modules to manage the detector.
-Copy this directory to the parent directory of the burn source, so that burn.py will find it as "../DataTypes"
+Copy this directory to the parent directory of the gamma-collector source, so that burn.py will find it as "../DataTypes"
 
-Given a successful configuration, burn will be listening on TCP port 7000 after booting up
+Given a successful configuration, gamma-collector will be listening on TCP port 7000 after booting up
 the system.
 
 Sessions will be stored locally under the directory ``$(HOME)/ashes``
 
-Note that the python script burn.py contains a hash-bang reference to python2, this may need to be changed when running on 
+Note that the python script burn.py contains a hash-bang reference to python2, this may need to be changed when running on
 other systems than ArchlinuxARM.
