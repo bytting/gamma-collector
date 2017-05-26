@@ -1,0 +1,5 @@
+# Assign the name "wifi" to builtin wifi device
+SUBSYSTEM=="net", DEVPATH=="/devices/platform/soc/3f300000.mmc/mmc_host/mmc1/mmc1:0001/mmc1:0001:1/net/wlan0", NAME="wifi"
+
+# Assign the name "osp" to Canberra Osprey NaI detecors
+ACTION=="add" SUBSYSTEM=="net", SUBSYSTEMS=="usb", ATTRS{idVendor}=="085f", ATTRS{idProduct}=="2030", NAME="osp"
