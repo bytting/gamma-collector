@@ -1,5 +1,13 @@
-# Assign the name "wifi" to builtin wifi device
-SUBSYSTEM=="net", DEVPATH=="/devices/platform/soc/3f300000.mmc/mmc_host/mmc1/mmc1:0001/mmc1:0001:1/net/wlan0", NAME="wifi"
+
+# Assign the name "wifi" to wifi device
+# Wifi dongle 5GHz
+ACTION=="add", SUBSYSTEM=="net", ATTRS{idVendor}=="148f", ATTRS{idProduct}=="5572", NAME="wifi"
+
+# ODROID wifi dongle
+#ACTION=="add", SUBSYSTEM=="net", ATTRS{idVendor}=="148f", ATTRS{idProduct}=="5370", NAME="wifi"
+
+# Builtin
+#SUBSYSTEM=="net", DEVPATH=="/devices/platform/soc/3f300000.mmc/mmc_host/mmc1/mmc1:0001/mmc1:0001:1/net/wlan0", NAME="wifi"
 
 # Assign the name "osp" to Canberra Osprey NaI detecors
 ACTION=="add" SUBSYSTEM=="net", SUBSYSTEMS=="usb", ATTRS{idVendor}=="085f", ATTRS{idProduct}=="2030", NAME="osp"

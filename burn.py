@@ -113,8 +113,7 @@ class Burn():
         logging.info('ctrl: terminating')
 
 if __name__ == '__main__':
-    # Sleep a while to let network interfaces settle (FIXME)
-    time.sleep(20)
+    time.sleep(10)
 
     #try:
     #logpath = os.path.expanduser("/var/log/")
