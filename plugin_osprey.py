@@ -37,64 +37,78 @@ detector = None
 def initializeDetector(config):	
 	
 	global detector
-	detector = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
-	detector.open("", detector_interface_ip)
-	#logging.info('spec: using device ' + self.dtb.getParameter(ParameterCodes.Network_MachineName, 0))
-	detector.lock("administrator", "password", detector_input)
-	
-	voltage = config["voltage"]
-	coarse = config["coarse_gain"]
-	fine = config["fine_gain"]
-	num_channels = config["num_channels"]
-	lld = config["lld"]
-	uld = config["uld"]
-	
-	_stabilizeProbe(voltage, coarse, fine, num_channels, lld, uld)
+
+	try:
+		detector = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
+		detector.open("", detector_interface_ip)		
+		detector.lock("administrator", "password", detector_input)
+		
+		voltage = config["voltage"]
+		coarse = config["coarse_gain"]
+		fine = config["fine_gain"]
+		num_channels = config["num_channels"]
+		lld = config["lld"]
+		uld = config["uld"]
+		
+		_stabilizeProbe(voltage, coarse, fine, num_channels, lld, uld)
+
+		return True, None
+
+	except Exception as e:
+
+		return False, e.args
 
 def acquireSpectrum(args):	
 		
-	_resetAcquisition()
+	try:
+		_resetAcquisition()
+			
+		# Setup presets
+		livetime = float(args["livetime"])
+		detector.setParameter(ParameterCodes.Preset_Live, livetime, detector_input)
+		# Clear data and time
+		detector.control(CommandCodes.Clear, detector_input)
+		# Start the acquisition
+		detector.control(CommandCodes.Start, detector_input)	
 		
-	# Setup presets
-	livetime = float(args["livetime"])	
-	
-	detector.setParameter(ParameterCodes.Preset_Live, livetime, detector_input)
-	# Clear data and time
-	detector.control(CommandCodes.Clear, detector_input)
-	# Start the acquisition
-	detector.control(CommandCodes.Start, detector_input)	
-	
-	while True:	
-		sd = detector.getSpectralData(detector_input, detector_group)
-		if ((0 == (StatusBits.Busy & sd.getStatus())) and (0 == (StatusBits.Waiting & sd.getStatus()))):
-			break
-		time.sleep(.1)
-	
-	# Extract last spectrum from detector and prepare parameters
-	chans = sd.getSpectrum().getCounts()
-	total_count = 0
-	channel_string = ''
-	for ch in chans:
-		total_count += ch
-		channel_string += str(ch) + ' '
+		while True:	
+			sd = detector.getSpectralData(detector_input, detector_group)
+			if ((0 == (StatusBits.Busy & sd.getStatus())) and (0 == (StatusBits.Waiting & sd.getStatus()))):
+				break
+			time.sleep(.1)
+		
+		# Extract last spectrum from detector and prepare parameters
+		chans = sd.getSpectrum().getCounts()
+		total_count = 0
+		channel_string = ''
+		for ch in chans:
+			total_count += ch
+			channel_string += str(ch) + ' '
 
-	# Add spectrum data to the response message
-	msg = proto.Message('spectrum')
-	msg.arguments["channels"] = channel_string.strip()
-	msg.arguments["num_channels"] = len(chans)
-	msg.arguments["total_count"] = total_count
-	msg.arguments["livetime"] = sd.getLiveTime()
-	msg.arguments["realtime"] = sd.getRealTime()
-	
-	return msg
+		# Add spectrum data to the response message
+		msg = proto.Message('spectrum')
+		msg.arguments["channels"] = channel_string.strip()
+		msg.arguments["num_channels"] = len(chans)
+		msg.arguments["total_count"] = total_count
+		msg.arguments["livetime"] = sd.getLiveTime()
+		msg.arguments["realtime"] = sd.getRealTime()
+
+		return msg
+
+	except Exception as e:
+
+		emsg = proto.Message('error')
+		emsg.arguments["message"] = e.args
+		return emsg
 
 def _stabilizeProbe(voltage, coarse_gain, fine_gain, num_channels, lld, uld):
 	
 	# Osprey API constants
-	Stabilized_Probe_Bussy = 0x00080000
+	Stabilized_Probe_Busy = 0x00080000
 	Stabilized_Probe_OK = 0x00100000
-	probe_status = detector.getParameter(ParameterCodes.Input_Status, detector_input)
+
 	# Set voltage
+	probe_status = detector.getParameter(ParameterCodes.Input_Status, detector_input)	
 	if((probe_status & Stabilized_Probe_OK) != Stabilized_Probe_OK):
 		detector.setParameter(ParameterCodes.Input_Voltage, int(voltage), detector_input)
 		detector.setParameter(ParameterCodes.Input_VoltageStatus, True, detector_input)
@@ -111,23 +125,19 @@ def _stabilizeProbe(voltage, coarse_gain, fine_gain, num_channels, lld, uld):
 	detector.setParameter(ParameterCodes.Input_ULD, float(uld), detector_input)
 
 def _resetAcquisition():
-	
-	try:
-		detector.control(CommandCodes.Stop, detector_input)
-		#Abort acquisition (only needed for MSS or MCS collections)
-		detector.control(CommandCodes.Abort, detector_input)
-		#Stop SCA collection
-		detector.setParameter(ParameterCodes.Input_SCAstatus, 0, detector_input)
-		#Stop Aux counter collection
-		detector.setParameter(ParameterCodes.Counter_Status, 0, detector_input)
-
-		# Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
-		detector.setParameter(ParameterCodes.Input_Mode, 0, detector_input)
-		# Setup presets
-		detector.setParameter(ParameterCodes.Preset_Options, 1, detector_input)
-		# Clear data and time
-		detector.control(CommandCodes.Clear, detector_input)
-		# Set the current memory group
-		detector.setParameter(ParameterCodes.Input_CurrentGroup, detector_group, detector_input)
-	except:
-		print('reset_acquisition failed')
+		
+	detector.control(CommandCodes.Stop, detector_input)
+	#Abort acquisition (only needed for MSS or MCS collections)
+	detector.control(CommandCodes.Abort, detector_input)
+	#Stop SCA collection
+	detector.setParameter(ParameterCodes.Input_SCAstatus, 0, detector_input)
+	#Stop Aux counter collection
+	detector.setParameter(ParameterCodes.Counter_Status, 0, detector_input)
+	# Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
+	detector.setParameter(ParameterCodes.Input_Mode, 0, detector_input)
+	# Setup presets
+	detector.setParameter(ParameterCodes.Preset_Options, 1, detector_input)
+	# Clear data and time
+	detector.control(CommandCodes.Clear, detector_input)
+	# Set the current memory group
+	detector.setParameter(ParameterCodes.Input_CurrentGroup, detector_group, detector_input)	

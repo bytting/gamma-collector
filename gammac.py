@@ -34,7 +34,7 @@ class GammaClient(DatagramProtocol):
 
 	def __init__(self):
 	
-		self.mode = None
+		pass
 	
 	def startProtocol(self):
 	
@@ -62,7 +62,7 @@ class GammaClient(DatagramProtocol):
 
 	def datagramReceived(self, data, addr):	
 	
-		print("received %r from %s" % (str(data), addr))
+		print("Received %r from %s" % (str(data), addr))
 	
 	def connectionRefused(self):		
 	

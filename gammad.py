@@ -75,8 +75,11 @@ class Controller(DatagramProtocol):
 		cmd, args = p["command"], p["arguments"]		
 		
 		if cmd == 'detector_config':
-			self.plugin.initializeDetector(args)
-			log.msg('Detector configured')
+			ret, err = self.plugin.initializeDetector(args)
+			if ret == False:
+				log.msg('Detector configuration failed: ' + err)
+			else:
+				log.msg('Detector configured')
 		elif cmd == 'start_session':			
 			self.initializeSession(args)
 			self.startSession(args)
@@ -128,16 +131,19 @@ class Controller(DatagramProtocol):
 		alt = self.gpsClient.altitude		
 		
 		msg = self.plugin.acquireSpectrum(self.sessionArgs)
-		
-		msg.arguments["latitude"] = lat
-		msg.arguments["longitude"] = lon
-		msg.arguments["altitude"] = alt
+
+		if msg["command"] != "error":		
+			msg.arguments["latitude"] = lat
+			msg.arguments["longitude"] = lon
+			msg.arguments["altitude"] = alt
 		
 		return msg
 
 	def handleSpectrum(self, msg):
 		
-		log.msg(str(msg))
+		if msg["command"] == "error":
+			log.msg('Spectrum error: ' + msg.arguments["message"])		
+
 		self.transport.write(bytes(msg), self.addr)
 		self.spectrumState = State.Ready
 
