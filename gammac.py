@@ -24,7 +24,7 @@ from __future__ import print_function
 from twisted.internet import reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.python import log
-import sys, argparse, zlib
+import sys, argparse, json
 
 import gc_proto as proto
 
@@ -45,28 +45,24 @@ class GammaClient(DatagramProtocol):
 			
 		self.transport.connect(self.ip, 9999)
         
-		if self.mode == 'config':
-			msg = zlib.compress('{"command":"detector_config", "arguments":{"voltage":775, "coarse_gain":1.0, "fine_gain":1.375, "num_channels":1024, "lld":3, "uld":110}}')
-			self.transport.write(msg)
+		if self.mode == 'config':			
+			self.transport.write(b'{"command":"detector_config", "arguments":{"voltage":775, "coarse_gain":1.0, "fine_gain":1.375, "num_channels":1024, "lld":3, "uld":110}}')
 			sys.exit()
-		elif self.mode == 'start':
-			msg = zlib.compress('{"command":"start_session", "arguments":{"session_name":"Session 1", "livetime":2}}')
-			self.transport.write(msg)
+		elif self.mode == 'start':			
+			self.transport.write(b'{"command":"start_session", "arguments":{"session_name":"Session 1", "livetime":2}}')
 			sys.exit()
-		elif self.mode == 'stop':
-			msg = zlib.compress('{"command":"stop_session", "arguments":{}}')
-			self.transport.write(msg)
+		elif self.mode == 'stop':			
+			self.transport.write(b'{"command":"stop_session", "arguments":{}}')
 			sys.exit()
-		elif self.mode == 'dump':
-			msg = zlib.compress('{"command":"dump_session", "arguments":{}}')
-			self.transport.write(msg)
+		elif self.mode == 'dump':			
+			self.transport.write(b'{"command":"dump_session", "arguments":{}}')
 		else:
 			log('Invalid options')
 			sys.exit()
 
 	def datagramReceived(self, data, addr):	
 		
-		msg = zlib.uncompress(data)
+		msg = json.loads(data)
 		print("Received %s from %s" % (msg, addr))
 	
 	def connectionRefused(self):		
