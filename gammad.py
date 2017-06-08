@@ -91,15 +91,14 @@ class Controller(DatagramProtocol):
 			log.msg("Unknown command " % cmd)
 
 	def initializeSession(self, args):
-		
-		# create database etc.
+				
 		log.msg("Initializing session " + args["session_name"])
-		pass
+		# create database etc.
 		
 	def finalizeSession(self, args):
 		
+		log.msg("Finalizing session " + args["session_name"])
 		# close database etc.
-		pass
 		
 	def startSession(self, args):
 		
