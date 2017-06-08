@@ -1,4 +1,4 @@
-# Controller for a Canberra Osprey gamma detector
+# Detector controller for gamma measurements
 # Copyright (C) 2016  Norwegain Radiation Protection Authority
 #
 # This program is free software; you can redistribute it and/or modify
@@ -17,18 +17,21 @@
 #
 # Authors: Dag Robole,
 
-import os, fcntl
-
-def setblocking(fd, state):
-    """
-    Description:
-        Set the blocking state of a file descriptor
-    Arguments:
-        fd - File descriptor
-        state - New blocking state of the file descriptor
-    """
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-    if state:
-        fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
-    else:
-        fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+class Message(object):
+	"""
+	Description:
+		Class used to store a protocol message
+	"""
+	def __init__(self, command='', arguments={}):
+		"""
+		Description:
+			Initialize message
+		Arguments:
+			command - (optional) A command as described by the protocol
+			arguments (optional) Map of valid arguments for the command
+		"""
+		self.command = command
+		self.arguments = arguments
+		
+	def __str__(self):
+		return self.command + ' ' + str(self.arguments)

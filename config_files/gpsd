@@ -1,4 +1,4 @@
 START_DAEMON="true"
 USBAUTO="false"
-DEVICES="/dev/ttyS0"
+DEVICES="/dev/ttyUSB0"
 GPSD_OPTIONS="-n -G"
