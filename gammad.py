@@ -39,10 +39,11 @@ class Controller(DatagramProtocol):
 
 	def __init__(self):
 		
-		self.addr = None
-		self.sessionState, self.spectrumState = State.Ready, State.Ready
+		self.addr = None		
 		self.sessionArgs = None
-		self.sessionLoop = None				
+		self.sessionLoop = None
+		self.sessionState = State.Ready
+		self.spectrumState = State.Ready
 		
 		self.gpsStop = threading.Event() # Event used to notify gps thread
 		self.gpsClient = gps.GpsThread(self.gpsStop) # Create the gps thread
@@ -79,16 +80,20 @@ class Controller(DatagramProtocol):
 				log.msg('Detector configuration failed: ' + err)
 			else:
 				log.msg('Detector configured')
-		elif cmd == 'start_session':			
+
+		elif cmd == 'start_session':
 			self.initializeSession(args)
 			self.startSession(args)
 			log.msg('Session started')
+
 		elif cmd == 'stop_session':
 			self.stopSession(args)
 			self.finalizeSession(args)
 			log.msg('Session stopped')
+
 		elif cmd == 'dump_session':
 			pass
+
 		else:
 			log.msg("Unknown command " % cmd)
 

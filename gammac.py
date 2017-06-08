@@ -35,8 +35,8 @@ class GammaClient(DatagramProtocol):
 	def __init__(self):
 	
 		parser = argparse.ArgumentParser()
-		parser.add_argument("mode", help="Possible values are config, start, stop or dump")
-		parser.add_argument("ip", help="IP address of server")
+		parser.add_argument("mode", help="Possible values are: config, start, stop, dump")
+		parser.add_argument("ip", help="IP address of remote node")
 		args = parser.parse_args()
 		self.mode = args.mode
 		self.ip = args.ip
