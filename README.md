@@ -38,7 +38,7 @@ so make sure to modify them accordingly.
    
 4. gpsd
 
-	Place this file in ``/etc/gpsd`` to configure the gps.
+	Copy this file to ``/etc/gpsd`` to configure the gps.
 
 The Osprey SDK contains a "DataTypes" directory with the python modules used to manage a Canberra Osprey detector.
 For the osprey plugin to work, copy this directory to the parent directory of the gamma-collector source, 

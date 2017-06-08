@@ -43,14 +43,14 @@ def initializeDetector(config):
 		detector.open("", detector_interface_ip)		
 		detector.lock("administrator", "password", detector_input)
 		
-		voltage = config["voltage"]
-		coarse = config["coarse_gain"]
-		fine = config["fine_gain"]
-		num_channels = config["num_channels"]
-		lld = config["lld"]
-		uld = config["uld"]
+		voltage = int(config["voltage"])
+		coarse_gain = float(config["coarse_gain"])
+		fine_gain = float(config["fine_gain"])
+		num_channels = int(config["num_channels"])
+		lld = float(config["lld"])
+		uld = float(config["uld"])
 		
-		_stabilizeProbe(voltage, coarse, fine, num_channels, lld, uld)
+		_stabilizeProbe(voltage, coarse_gain, fine_gain, num_channels, lld, uld)
 
 		return True, None
 
@@ -79,17 +79,12 @@ def acquireSpectrum(args):
 		
 		# Extract last spectrum from detector and prepare parameters
 		chans = sd.getSpectrum().getCounts()
-		total_count = 0
-		channel_string = ''
-		for ch in chans:
-			total_count += ch
-			channel_string += str(ch) + ' '
 
-		# Add spectrum data to the response message
+		# Add spectrum data to response message
 		msg = proto.Message('spectrum')
-		msg.arguments["channels"] = channel_string.strip()
+		msg.arguments["channels"] = ' '.join(map(str, chans))
 		msg.arguments["num_channels"] = len(chans)
-		msg.arguments["total_count"] = total_count
+		msg.arguments["total_count"] = sum(chans)
 		msg.arguments["livetime"] = sd.getLiveTime()
 		msg.arguments["realtime"] = sd.getRealTime()
 
@@ -99,6 +94,7 @@ def acquireSpectrum(args):
 
 		emsg = proto.Message('error')
 		emsg.arguments["message"] = e.args
+
 		return emsg
 
 def _stabilizeProbe(voltage, coarse_gain, fine_gain, num_channels, lld, uld):
@@ -110,28 +106,29 @@ def _stabilizeProbe(voltage, coarse_gain, fine_gain, num_channels, lld, uld):
 	# Set voltage
 	probe_status = detector.getParameter(ParameterCodes.Input_Status, detector_input)	
 	if((probe_status & Stabilized_Probe_OK) != Stabilized_Probe_OK):
-		detector.setParameter(ParameterCodes.Input_Voltage, int(voltage), detector_input)
+		detector.setParameter(ParameterCodes.Input_Voltage, voltage, detector_input)
 		detector.setParameter(ParameterCodes.Input_VoltageStatus, True, detector_input)
-		# Wait till ramping is complete
-		print('Ramping HVPS...')
+		# Wait until ramping is complete		
 		while(detector.getParameter(ParameterCodes.Input_VoltageRamping, detector_input) is True):
 			time.sleep(.4)
 	
-	detector.setParameter(ParameterCodes.Input_CoarseGain, float(coarse_gain), detector_input) # [1.0, 2.0, 4.0, 8.0]
-	detector.setParameter(ParameterCodes.Input_FineGain, float(fine_gain), detector_input) # [1.0, 5.0]
-	detector.setParameter(ParameterCodes.Input_NumberOfChannels, int(num_channels), detector_input)
+	# Set gain levels and discriminators
+	detector.setParameter(ParameterCodes.Input_CoarseGain, coarse_gain, detector_input) # [1.0, 2.0, 4.0, 8.0]
+	detector.setParameter(ParameterCodes.Input_FineGain, fine_gain, detector_input) # [1.0, 5.0]
+	detector.setParameter(ParameterCodes.Input_NumberOfChannels, num_channels, detector_input)
 	detector.setParameter(ParameterCodes.Input_LLDmode, 1, detector_input) # Set manual LLD mode
-	detector.setParameter(ParameterCodes.Input_LLD, float(lld), detector_input)
-	detector.setParameter(ParameterCodes.Input_ULD, float(uld), detector_input)
+	detector.setParameter(ParameterCodes.Input_LLD, lld, detector_input)
+	detector.setParameter(ParameterCodes.Input_ULD, uld, detector_input)
 
 def _resetAcquisition():
-		
+	
+	# Stop any current acquisitions
 	detector.control(CommandCodes.Stop, detector_input)
-	#Abort acquisition (only needed for MSS or MCS collections)
+	# Abort acquisition (only needed for MSS or MCS collections)
 	detector.control(CommandCodes.Abort, detector_input)
-	#Stop SCA collection
+	# Stop SCA collection
 	detector.setParameter(ParameterCodes.Input_SCAstatus, 0, detector_input)
-	#Stop Aux counter collection
+	# Stop Aux counter collection
 	detector.setParameter(ParameterCodes.Counter_Status, 0, detector_input)
 	# Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
 	detector.setParameter(ParameterCodes.Input_Mode, 0, detector_input)

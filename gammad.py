@@ -52,8 +52,7 @@ class Controller(DatagramProtocol):
 
 	def loadPlugin(self, name):
 		
-		mod = __import__("plugin_%s" % name)
-		return mod
+		return __import__("plugin_%s" % name)
 		
 	def startProtocol(self):		
 		
