@@ -24,7 +24,7 @@ from __future__ import print_function
 from twisted.internet import reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.python import log
-import sys, argparse
+import sys, argparse, zlib
 
 import gc_proto as proto
 
@@ -34,35 +34,40 @@ class GammaClient(DatagramProtocol):
 
 	def __init__(self):
 	
-		pass
-	
-	def startProtocol(self):
-	
 		parser = argparse.ArgumentParser()
 		parser.add_argument("mode", help="Possible values are config, start, stop or dump")
 		parser.add_argument("ip", help="IP address of server")
-		args = parser.parse_args()		
+		args = parser.parse_args()
+		self.mode = args.mode
+		self.ip = args.ip
+	
+	def startProtocol(self):
 			
-		self.transport.connect(args.ip, 9999)
+		self.transport.connect(self.ip, 9999)
         
-		if args.mode == 'config':
-			self.transport.write(b'{"command":"detector_config", "arguments":{"voltage":775, "coarse_gain":1.0, "fine_gain":1.375, "num_channels":1024, "lld":3, "uld":110}}')
+		if self.mode == 'config':
+			msg = zlib.compress('{"command":"detector_config", "arguments":{"voltage":775, "coarse_gain":1.0, "fine_gain":1.375, "num_channels":1024, "lld":3, "uld":110}}')
+			self.transport.write(msg)
 			sys.exit()
-		elif args.mode == 'start':
-			self.transport.write(b'{"command":"start_session", "arguments":{"session_name":"Session 1", "livetime":2}}')
+		elif self.mode == 'start':
+			msg = zlib.compress('{"command":"start_session", "arguments":{"session_name":"Session 1", "livetime":2}}')
+			self.transport.write(msg)
 			sys.exit()
-		elif args.mode == 'stop':
-			self.transport.write(b'{"command":"stop_session", "arguments":{}}')
+		elif self.mode == 'stop':
+			msg = zlib.compress('{"command":"stop_session", "arguments":{}}')
+			self.transport.write(msg)
 			sys.exit()
-		elif args.mode == 'dump':
-			self.transport.write(b'{"command":"dump_session", "arguments":{}}')
+		elif self.mode == 'dump':
+			msg = zlib.compress('{"command":"dump_session", "arguments":{}}')
+			self.transport.write(msg)
 		else:
 			log('Invalid options')
 			sys.exit()
 
 	def datagramReceived(self, data, addr):	
-	
-		print("Received %r from %s" % (str(data), addr))
+		
+		msg = zlib.uncompress(data)
+		print("Received %s from %s" % (msg, addr))
 	
 	def connectionRefused(self):		
 	

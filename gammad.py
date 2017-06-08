@@ -21,7 +21,7 @@
 
 from __future__ import print_function
 
-import sys, json, threading
+import sys, json, threading, zlib
 
 from twisted.internet import reactor, threads, defer, task
 from twisted.internet.protocol import DatagramProtocol
@@ -67,10 +67,11 @@ class Controller(DatagramProtocol):
 		
 	def datagramReceived(self, data, addr):
 		
-		log.msg("Received %r from %s" % (data, addr))
+		msg = zlib.uncompress(data)
+		log.msg("Received %s from %s" % (msg, addr))
 
 		self.addr = addr
-		p = json.loads(data)
+		p = json.loads(msg)
 		cmd, args = p["command"], p["arguments"]		
 		
 		if cmd == 'detector_config':
@@ -141,9 +142,9 @@ class Controller(DatagramProtocol):
 	def handleSpectrum(self, msg):
 		
 		if msg["command"] == "error":
-			log.msg('Spectrum error: ' + msg.arguments["message"])		
-
-		self.transport.write(bytes(msg), self.addr)
+			log.msg('Spectrum error: ' + msg.arguments["message"])
+		
+		self.transport.write(zlib.compress(msg), self.addr)
 		self.spectrumState = State.Ready
 
 reactor.listenUDP(9999, Controller())
