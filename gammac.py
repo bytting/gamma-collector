@@ -26,8 +26,6 @@ from twisted.internet.protocol import DatagramProtocol
 from twisted.python import log
 import sys, argparse
 
-import gc_proto as proto
-
 log.startLogging(sys.stdout)
 
 class GammaClient(DatagramProtocol):

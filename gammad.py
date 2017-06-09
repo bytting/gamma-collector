@@ -27,7 +27,7 @@ from twisted.internet import reactor, threads, defer, task
 from twisted.internet.protocol import DatagramProtocol
 from twisted.python import log
 
-import gc_gps as gps, gc_proto as proto
+import gc_gps as gps
 
 log.startLogging(sys.stdout)
 
@@ -54,8 +54,8 @@ class Controller(DatagramProtocol):
 		self.plugin = None		
 
 	def sendResponse(self, state, message):
-
-		resp = proto.Message(state, {"message":message})			
+		
+		resp = '{"command":"%s", arguments:{"message":"%s"}' % (state, message)
 		self.transport.write(bytes(resp), self.addr)
 
 	def loadPlugin(self, name):
@@ -131,8 +131,7 @@ class Controller(DatagramProtocol):
 		
 		if self.spectrumState == SpectrumState.Ready:
 			d = threads.deferToThread(self.startSpectrum)
-			d.addCallback(self.handleSpectrumSuccess)
-			d.addErrback(self.handleSpectrumFailure)
+			d.addCallbacks(self.handleSpectrumSuccess, self.handleSpectrumFailure)
 			self.spectrumState = SpectrumState.Busy
 			
 	def stopSession(self, args):
