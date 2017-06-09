@@ -36,68 +36,49 @@ detector = None
 
 def initializeDetector(config):	
 	
+	if set(config) < set(("voltage", "coarse_gain", "fine_gain", "num_channels", "lld", "uld")):
+		raise Exception("Unable to initialize detector: missing configuration items")
+
 	global detector
-
-	try:
-		detector = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
-		detector.open("", detector_interface_ip)		
-		detector.lock("administrator", "password", detector_input)
-		
-		voltage = int(config["voltage"])
-		coarse_gain = float(config["coarse_gain"])
-		fine_gain = float(config["fine_gain"])
-		num_channels = int(config["num_channels"])
-		lld = float(config["lld"])
-		uld = float(config["uld"])
-		
-		_stabilizeProbe(voltage, coarse_gain, fine_gain, num_channels, lld, uld)
-
-		return True, None
-
-	except Exception as e:
-
-		return False, e.args
+	detector = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
+	detector.open("", detector_interface_ip)		
+	detector.lock("administrator", "password", detector_input)
+	
+	_stabilizeProbe(config)
 
 def acquireSpectrum(args):	
-		
-	try:
-		_resetAcquisition()
-			
-		# Setup presets
-		livetime = float(args["livetime"])
-		detector.setParameter(ParameterCodes.Preset_Live, livetime, detector_input)
-		# Clear data and time
-		detector.control(CommandCodes.Clear, detector_input)
-		# Start the acquisition
-		detector.control(CommandCodes.Start, detector_input)	
-		
-		while True:	
-			sd = detector.getSpectralData(detector_input, detector_group)
-			if ((0 == (StatusBits.Busy & sd.getStatus())) and (0 == (StatusBits.Waiting & sd.getStatus()))):
-				break
-			time.sleep(.1)
-		
-		# Extract last spectrum from detector and prepare parameters
-		chans = sd.getSpectrum().getCounts()
+	
+	_resetAcquisition()
+	
+	# Setup presets
+	livetime = float(args["livetime"])
+	detector.setParameter(ParameterCodes.Preset_Live, livetime, detector_input)
+	# Clear data and time
+	detector.control(CommandCodes.Clear, detector_input)
+	# Start the acquisition
+	detector.control(CommandCodes.Start, detector_input)	
+	
+	while True:	
+		sd = detector.getSpectralData(detector_input, detector_group)
+		if ((0 == (StatusBits.Busy & sd.getStatus())) and (0 == (StatusBits.Waiting & sd.getStatus()))):
+			break
+		time.sleep(.1)
+	
+	# Extract last spectrum from detector and prepare parameters
+	chans = sd.getSpectrum().getCounts()
 
-		# Add spectrum data to response message
-		msg = proto.Message('spectrum')
-		msg.arguments["channels"] = ' '.join(map(str, chans))
-		msg.arguments["num_channels"] = len(chans)
-		msg.arguments["total_count"] = sum(chans)
-		msg.arguments["livetime"] = sd.getLiveTime()
-		msg.arguments["realtime"] = sd.getRealTime()
+	# Add spectrum data to response message
+	msg = proto.Message('spectrum')
+	msg.arguments["session_name"] = args["session_name"]
+	msg.arguments["channels"] = ' '.join(map(str, chans))
+	msg.arguments["num_channels"] = len(chans)
+	msg.arguments["total_count"] = sum(chans)
+	msg.arguments["livetime"] = sd.getLiveTime()
+	msg.arguments["realtime"] = sd.getRealTime()
 
-		return msg
+	return msg
 
-	except Exception as e:
-
-		emsg = proto.Message('error')
-		emsg.arguments["message"] = e.args
-
-		return emsg
-
-def _stabilizeProbe(voltage, coarse_gain, fine_gain, num_channels, lld, uld):
+def _stabilizeProbe(config):
 	
 	# Osprey API constants
 	Stabilized_Probe_Busy = 0x00080000
@@ -106,19 +87,19 @@ def _stabilizeProbe(voltage, coarse_gain, fine_gain, num_channels, lld, uld):
 	# Set voltage
 	probe_status = detector.getParameter(ParameterCodes.Input_Status, detector_input)	
 	if((probe_status & Stabilized_Probe_OK) != Stabilized_Probe_OK):
-		detector.setParameter(ParameterCodes.Input_Voltage, voltage, detector_input)
+		detector.setParameter(ParameterCodes.Input_Voltage, int(config["voltage"]), detector_input)
 		detector.setParameter(ParameterCodes.Input_VoltageStatus, True, detector_input)
 		# Wait until ramping is complete		
 		while(detector.getParameter(ParameterCodes.Input_VoltageRamping, detector_input) is True):
 			time.sleep(.4)
 	
 	# Set gain levels and discriminators
-	detector.setParameter(ParameterCodes.Input_CoarseGain, coarse_gain, detector_input) # [1.0, 2.0, 4.0, 8.0]
-	detector.setParameter(ParameterCodes.Input_FineGain, fine_gain, detector_input) # [1.0, 5.0]
-	detector.setParameter(ParameterCodes.Input_NumberOfChannels, num_channels, detector_input)
+	detector.setParameter(ParameterCodes.Input_CoarseGain, float(config["coarse_gain"]), detector_input) # [1.0, 2.0, 4.0, 8.0]
+	detector.setParameter(ParameterCodes.Input_FineGain, float(config["fine_gain"]), detector_input) # [1.0, 5.0]
+	detector.setParameter(ParameterCodes.Input_NumberOfChannels, int(config["num_channels"]), detector_input)
 	detector.setParameter(ParameterCodes.Input_LLDmode, 1, detector_input) # Set manual LLD mode
-	detector.setParameter(ParameterCodes.Input_LLD, lld, detector_input)
-	detector.setParameter(ParameterCodes.Input_ULD, uld, detector_input)
+	detector.setParameter(ParameterCodes.Input_LLD, float(config["lld"]), detector_input)
+	detector.setParameter(ParameterCodes.Input_ULD, float(config["uld"]), detector_input)
 
 def _resetAcquisition():
 	

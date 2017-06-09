@@ -46,7 +46,7 @@ class GammaClient(DatagramProtocol):
 		self.transport.connect(self.ip, 9999)
         
 		if self.mode == 'config':			
-			self.transport.write(b'{"command":"detector_config", "arguments":{"voltage":775, "coarse_gain":1.0, "fine_gain":1.375, "num_channels":1024, "lld":3, "uld":110}}')
+			self.transport.write(b'{"command":"detector_config", "arguments":{"detector_type":"osprey", "voltage":775, "coarse_gain":1.0, "fine_gain":1.375, "num_channels":1024, "lld":3, "uld":110}}')
 			sys.exit()
 		elif self.mode == 'start':			
 			self.transport.write(b'{"command":"start_session", "arguments":{"session_name":"Session 1", "livetime":2}}')

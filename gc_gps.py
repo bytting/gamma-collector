@@ -32,15 +32,19 @@ class GpsThread(threading.Thread):
 		threading.Thread.__init__(self)
 		self._stopped = event
 		self.gpsd = gps(mode=WATCH_ENABLE)
-		self.last_lat = 0
-		self.last_epx = 0
-		self.last_lon = 0
-		self.last_epy = 0
-		self.last_alt = 0
-		self.last_epv = 0
-		self.last_speed = 0
-		self.last_eps = 0
-		self.last_time = ''
+		self.lat = 0
+		self.lat_err = 0
+		self.lon = 0
+		self.lon_err = 0
+		self.alt = 0
+		self.alt_err = 0
+		self.track = 0
+		self.track_err = 0
+		self.speed = 0
+		self.speed_err = 0
+		self.climb = 0
+		self.climb_err = 0
+		self.time = ''
 
 	def run(self):
 		"""
@@ -49,62 +53,98 @@ class GpsThread(threading.Thread):
 		"""		
 
 		# Process any buffered gps signals every .3 seconds
-		while not self._stopped.wait(0.3):
+		while not self._stopped.wait(0.5):
 
 			# Update our last measurement until buffer is empty
 			while self.gpsd.waiting():
 				self.gpsd.next()
 				if not math.isnan(self.gpsd.fix.latitude):
-					self.last_lat = self.gpsd.fix.latitude
+					self.lat = self.gpsd.fix.latitude
 				if not math.isnan(self.gpsd.fix.epx):
-					self.last_epx = self.gpsd.fix.epx
+					self.lat_err = self.gpsd.fix.epx
 				if not math.isnan(self.gpsd.fix.longitude):
-					self.last_lon = self.gpsd.fix.longitude
+					self.lon = self.gpsd.fix.longitude
 				if not math.isnan(self.gpsd.fix.epy):
-					self.last_epy = self.gpsd.fix.epy
+					self.lon_err = self.gpsd.fix.epy
 				if not math.isnan(self.gpsd.fix.altitude):
-					self.last_alt = self.gpsd.fix.altitude
+					self.alt = self.gpsd.fix.altitude
 				if not math.isnan(self.gpsd.fix.epv):
-					self.last_epv = self.gpsd.fix.epv
+					self.alt_err = self.gpsd.fix.epv
+				if not math.isnan(self.gpsd.fix.track):
+					self.track = self.gpsd.fix.track
+				if not math.isnan(self.gpsd.fix.epd):
+					self.track_err = self.gpsd.fix.epd
 				if not math.isnan(self.gpsd.fix.speed):
-					self.last_speed = self.gpsd.fix.speed
+					self.speed = self.gpsd.fix.speed
 				if not math.isnan(self.gpsd.fix.eps):
-					self.last_eps = self.gpsd.fix.eps
+					self.speed_err = self.gpsd.fix.eps
+				if not math.isnan(self.gpsd.fix.climb):
+					self.climb = self.gpsd.fix.climb
+				if not math.isnan(self.gpsd.fix.epc):
+					self.climb_err = self.gpsd.fix.epc
 				if self.gpsd.utc != None and self.gpsd.utc != '':
-					self.last_time = self.gpsd.utc
+					self.time = self.gpsd.utc
 
 	@property
-	def latitude(self):
-		return self.last_lat
+	def lat(self):
+		return self.lat
 
 	@property
-	def epx(self):
-		return self.last_epx
+	def lat_err(self):
+		return self.epx
 
 	@property
-	def longitude(self):
-		return self.last_lon
+	def lon(self):
+		return self.lon
 
 	@property
-	def epy(self):
-		return self.last_epy
+	def lon_err(self):
+		return self.epy
 
 	@property
-	def altitude(self):
-		return self.last_alt
+	def alt(self):
+		return self.alt
 
 	@property
-	def epv(self):
-		return self.last_epv
+	def alt_err(self):
+		return self.alt_err
+
+	@property
+	def track(self):
+		return self.track
+
+	@property
+	def track_err(self):
+		return self.track_err
 
 	@property
 	def speed(self):
-		return self.last_speed
+		return self.speed
 
 	@property
-	def eps(self):
-		return self.last_eps
+	def speed_err(self):
+		return self.speed_err
+
+	@property
+	def climb(self):
+		return self.climb
+
+	@property
+	def climb_err(self):
+		return self.climb_err
 
 	@property
 	def time(self):
 		return self.last_time
+
+	@property
+	def position(self):
+		return { "latitude" : self.lat, "latitude_error" : self.lat_err, 
+				"longitude" : self.lon, "longitude_error" : self.lon_err, 
+				"altitude" : self.alt, "altitude_error" : self.alt_err }
+
+	@property
+	def velocity(self):
+		return { "track" : self.track, "track_error" : self.track_err, 
+				"speed" : self.speed, "speed_error" : self.speed_err, 
+				"climb" : self.climb, "climb_error" : self.climb_err }
