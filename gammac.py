@@ -24,7 +24,7 @@ from __future__ import print_function
 from twisted.internet import reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.python import log
-import sys, argparse, json
+import sys, argparse
 
 import gc_proto as proto
 
@@ -48,22 +48,25 @@ class GammaClient(DatagramProtocol):
 		if self.mode == 'config':			
 			self.transport.write(b'{"command":"detector_config", "arguments":{"detector_type":"osprey", "voltage":775, "coarse_gain":1.0, "fine_gain":1.375, "num_channels":1024, "lld":3, "uld":110}}')
 			sys.exit()
+			
 		elif self.mode == 'start':			
 			self.transport.write(b'{"command":"start_session", "arguments":{"session_name":"Session 1", "livetime":2}}')
 			sys.exit()
+			
 		elif self.mode == 'stop':			
 			self.transport.write(b'{"command":"stop_session", "arguments":{}}')
 			sys.exit()
+			
 		elif self.mode == 'dump':			
 			self.transport.write(b'{"command":"dump_session", "arguments":{}}')
+			
 		else:
 			log('Invalid options')
 			sys.exit()
 
 	def datagramReceived(self, data, addr):	
-		
-		msg = json.loads(data)
-		print("Received %s from %s" % (msg, addr))
+				
+		print("Received %s from %s" % (data, addr))	
 	
 	def connectionRefused(self):		
 	

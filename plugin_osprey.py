@@ -47,7 +47,7 @@ def initializeDetector(config):
 	_stabilizeProbe(config)
 
 def acquireSpectrum(args):	
-	
+		
 	_resetAcquisition()
 	
 	# Setup presets
@@ -79,7 +79,7 @@ def acquireSpectrum(args):
 	return msg
 
 def _stabilizeProbe(config):
-	
+		
 	# Osprey API constants
 	Stabilized_Probe_Busy = 0x00080000
 	Stabilized_Probe_OK = 0x00100000

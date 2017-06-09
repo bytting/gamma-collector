@@ -31,10 +31,12 @@ import gc_gps as gps, gc_proto as proto
 
 log.startLogging(sys.stdout)
 
-class State:
-	
-	Ready, Busy = range(2)
+class SessionState: Ready, Busy = range(2)
 
+class SpectrumState: Ready, Busy = range(2)
+	
+class DetectorState: Cold, Warm = range(2)
+	
 class Controller(DatagramProtocol):
 
 	def __init__(self):
@@ -42,8 +44,9 @@ class Controller(DatagramProtocol):
 		self.addr = None		
 		self.sessionArgs = None
 		self.sessionLoop = None
-		self.sessionState = State.Ready
-		self.spectrumState = State.Ready
+		self.sessionState = SessionState.Ready
+		self.spectrumState = SpectrumState.Ready
+		self.detectorState = DetectorState.Cold
 		
 		self.gpsStop = threading.Event() # Event used to notify gps thread
 		self.gpsClient = gps.GpsThread(self.gpsStop) # Create the gps thread
@@ -56,9 +59,9 @@ class Controller(DatagramProtocol):
 		self.transport.write(bytes(resp), self.addr)
 
 	def loadPlugin(self, name):
-		
+				
 		modName = "plugin_" + name
-		return sys.modules[modName] if modName in sys.modules else importlib.import_module(modName)		
+		return sys.modules[modName] if modName in sys.modules else importlib.import_module(modName)
 		
 	def startProtocol(self):		
 		
@@ -83,6 +86,7 @@ class Controller(DatagramProtocol):
 			if cmd == 'detector_config':
 				self.plugin = self.loadPlugin(args["detector_type"])
 				self.plugin.initializeDetector(args)
+				self.detectorState = DetectorState.Warm
 				self.sendResponse("success", "Detector initialized")
 
 			elif cmd == 'start_session':
@@ -102,6 +106,7 @@ class Controller(DatagramProtocol):
 				raise Exception("Unknown command: " % cmd)
 
 		except Exception as e:
+			log.msg(str(e))
 			self.sendResponse("error", str(e))
 
 	def initializeSession(self, args):
@@ -116,24 +121,24 @@ class Controller(DatagramProtocol):
 		
 	def startSession(self, args):
 		
-		if self.sessionState == State.Ready:
-			self.sessionState = State.Busy
+		if self.sessionState == SessionState.Ready:
+			self.sessionState = SessionState.Busy
 			self.sessionArgs = args
 			self.sessionLoop = task.LoopingCall(self.sessionTick)
 			self.sessionLoop.start(0.05)	
 
 	def sessionTick(self):
 		
-		if self.spectrumState == State.Ready:
+		if self.spectrumState == SpectrumState.Ready:
 			d = threads.deferToThread(self.startSpectrum)
 			d.addCallback(self.handleSpectrumSuccess)
 			d.addErrback(self.handleSpectrumFailure)
-			self.spectrumState = State.Busy
+			self.spectrumState = SpectrumState.Busy
 			
 	def stopSession(self, args):
 		
 		self.sessionLoop.stop()
-		self.sessionState = State.Ready
+		self.sessionState = SessionState.Ready
 
 	def startSpectrum(self):
 		
@@ -152,12 +157,12 @@ class Controller(DatagramProtocol):
 	def handleSpectrumSuccess(self, msg):
 		
 		self.transport.write(bytes(msg), self.addr)
-		self.spectrumState = State.Ready
+		self.spectrumState = SpectrumState.Ready
 
 	def handleSpectrumFailure(self, err):
 		
 		self.sendResponse("error", err.getErrorMessage())
-		self.spectrumState = State.Ready
+		self.spectrumState = SpectrumState.Ready
 
 reactor.listenUDP(9999, Controller())
 reactor.run()

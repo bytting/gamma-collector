@@ -32,19 +32,19 @@ class GpsThread(threading.Thread):
 		threading.Thread.__init__(self)
 		self._stopped = event
 		self.gpsd = gps(mode=WATCH_ENABLE)
-		self.lat = 0
-		self.lat_err = 0
-		self.lon = 0
-		self.lon_err = 0
-		self.alt = 0
-		self.alt_err = 0
-		self.track = 0
-		self.track_err = 0
-		self.speed = 0
-		self.speed_err = 0
-		self.climb = 0
-		self.climb_err = 0
-		self.time = ''
+		self.clatitude = 0
+		self.clatitude_err = 0
+		self.clongitude = 0
+		self.clongitude_err = 0
+		self.caltitude = 0
+		self.caltitude_err = 0
+		self.ctrack = 0
+		self.ctrack_err = 0
+		self.cspeed = 0
+		self.cspeed_err = 0
+		self.cclimb = 0
+		self.cclimb_err = 0
+		self.ctime = ''
 
 	def run(self):
 		"""
@@ -59,92 +59,92 @@ class GpsThread(threading.Thread):
 			while self.gpsd.waiting():
 				self.gpsd.next()
 				if not math.isnan(self.gpsd.fix.latitude):
-					self.lat = self.gpsd.fix.latitude
+					self.clatitude = self.gpsd.fix.latitude
 				if not math.isnan(self.gpsd.fix.epx):
-					self.lat_err = self.gpsd.fix.epx
+					self.clatitude_err = self.gpsd.fix.epx
 				if not math.isnan(self.gpsd.fix.longitude):
-					self.lon = self.gpsd.fix.longitude
+					self.clongitude = self.gpsd.fix.longitude
 				if not math.isnan(self.gpsd.fix.epy):
-					self.lon_err = self.gpsd.fix.epy
+					self.clongitude_err = self.gpsd.fix.epy
 				if not math.isnan(self.gpsd.fix.altitude):
-					self.alt = self.gpsd.fix.altitude
+					self.caltitude = self.gpsd.fix.altitude
 				if not math.isnan(self.gpsd.fix.epv):
-					self.alt_err = self.gpsd.fix.epv
+					self.caltitude_err = self.gpsd.fix.epv
 				if not math.isnan(self.gpsd.fix.track):
-					self.track = self.gpsd.fix.track
+					self.ctrack = self.gpsd.fix.track
 				if not math.isnan(self.gpsd.fix.epd):
-					self.track_err = self.gpsd.fix.epd
+					self.ctrack_err = self.gpsd.fix.epd
 				if not math.isnan(self.gpsd.fix.speed):
-					self.speed = self.gpsd.fix.speed
+					self.cspeed = self.gpsd.fix.speed
 				if not math.isnan(self.gpsd.fix.eps):
-					self.speed_err = self.gpsd.fix.eps
+					self.cspeed_err = self.gpsd.fix.eps
 				if not math.isnan(self.gpsd.fix.climb):
-					self.climb = self.gpsd.fix.climb
+					self.cclimb = self.gpsd.fix.climb
 				if not math.isnan(self.gpsd.fix.epc):
-					self.climb_err = self.gpsd.fix.epc
+					self.cclimb_err = self.gpsd.fix.epc
 				if self.gpsd.utc != None and self.gpsd.utc != '':
-					self.time = self.gpsd.utc
+					self.ctime = self.gpsd.utc
 
 	@property
-	def lat(self):
-		return self.lat
+	def latitude(self):
+		return self.clatitude
 
 	@property
-	def lat_err(self):
-		return self.epx
+	def latitude_err(self):
+		return self.clatitude_err
 
 	@property
-	def lon(self):
-		return self.lon
+	def longitude(self):
+		return self.longitude
 
 	@property
-	def lon_err(self):
-		return self.epy
+	def longitude_err(self):
+		return self.clongitude_err
 
 	@property
-	def alt(self):
-		return self.alt
+	def altitude(self):
+		return self.caltitude
 
 	@property
-	def alt_err(self):
-		return self.alt_err
+	def altitude_err(self):
+		return self.caltitude_err
 
 	@property
 	def track(self):
-		return self.track
+		return self.ctrack
 
 	@property
 	def track_err(self):
-		return self.track_err
+		return self.ctrack_err
 
 	@property
 	def speed(self):
-		return self.speed
+		return self.cspeed
 
 	@property
 	def speed_err(self):
-		return self.speed_err
+		return self.cspeed_err
 
 	@property
 	def climb(self):
-		return self.climb
+		return self.cclimb
 
 	@property
 	def climb_err(self):
-		return self.climb_err
+		return self.cclimb_err
 
 	@property
 	def time(self):
-		return self.last_time
+		return self.ctime
 
 	@property
 	def position(self):
-		return { "latitude" : self.lat, "latitude_error" : self.lat_err, 
-				"longitude" : self.lon, "longitude_error" : self.lon_err, 
-				"altitude" : self.alt, "altitude_error" : self.alt_err }
+		return { "latitude" : self.clatitude, "latitude_error" : self.clatitude_err, 
+				"longitude" : self.clongitude, "longitude_error" : self.clongitude_err, 
+				"altitude" : self.caltitude, "altitude_error" : self.caltitude_err }
 
 	@property
 	def velocity(self):
-		return { "track" : self.track, "track_error" : self.track_err, 
-				"speed" : self.speed, "speed_error" : self.speed_err, 
-				"climb" : self.climb, "climb_error" : self.climb_err }
+		return { "track" : self.ctrack, "track_error" : self.ctrack_err, 
+				"speed" : self.cspeed, "speed_error" : self.cspeed_err, 
+				"climb" : self.cclimb, "climb_error" : self.cclimb_err }
