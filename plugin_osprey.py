@@ -1,4 +1,4 @@
-# Detector controller for gamma measurements
+# Detector plugin for Canberra Osprey gamma detectors
 # Copyright (C) 2016  Norwegain Radiation Protection Authority
 #
 # This program is free software; you can redistribute it and/or modify
@@ -47,12 +47,14 @@ def initializeDetector(config):
 	_stabilizeProbe(config)
 
 def acquireSpectrum(args):	
-		
+
+	if set(args) < set(("session_name", "livetime")):
+		raise Exception("Unable to acquire spectrum: missing arguments")
+
 	_resetAcquisition()
 	
-	# Setup presets
-	livetime = float(args["livetime"])
-	detector.setParameter(ParameterCodes.Preset_Live, livetime, detector_input)
+	# Setup presets	
+	detector.setParameter(ParameterCodes.Preset_Live, float(args["livetime"]), detector_input)
 	# Clear data and time
 	detector.control(CommandCodes.Clear, detector_input)
 	# Start the acquisition

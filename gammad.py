@@ -42,16 +42,16 @@ class Controller(DatagramProtocol):
 	def __init__(self):
 		
 		self.addr = None		
-		self.sessionArgs = None
-		self.sessionLoop = None
-		self.sessionState = SessionState.Ready
-		self.spectrumState = SpectrumState.Ready
-		self.detectorState = DetectorState.Cold
+		self.session_args = None
+		self.session_loop = None
+		self.session_state = SessionState.Ready
+		self.spectrum_state = SpectrumState.Ready
+		self.detector_state = DetectorState.Cold
 		
-		self.gpsStop = threading.Event() # Event used to notify gps thread
-		self.gpsClient = gps.GpsThread(self.gpsStop) # Create the gps thread
+		self.gps_stop = threading.Event() # Event used to notify gps thread
+		self.gps = gps.GpsThread(self.gps_stop) # Create the gps thread
 		
-		self.plugin = None		
+		self.plugin = None
 
 	def sendResponse(self, state, message):
 		
@@ -60,19 +60,19 @@ class Controller(DatagramProtocol):
 
 	def loadPlugin(self, name):
 				
-		modName = "plugin_" + name
-		return sys.modules[modName] if modName in sys.modules else importlib.import_module(modName)
+		module_name = "plugin_" + name
+		return sys.modules[module_name] if module_name in sys.modules else importlib.import_module(module_name)
 		
 	def startProtocol(self):		
 		
-		self.gpsClient.start() # Start the gps
-		log.msg('GPS client started')
+		self.gps.start()
+		log.msg('GPS thread started')
 	
 	def stopProtocol(self):
 		
-		self.gpsStop.set()
-		self.gpsClient.join()
-		log.msg('GPS client stopped')        
+		self.gps_stop.set()
+		self.gps.join()
+		log.msg('GPS thread stopped')        
 		
 	def datagramReceived(self, data, addr):
 		
@@ -86,7 +86,7 @@ class Controller(DatagramProtocol):
 			if cmd == 'detector_config':
 				self.plugin = self.loadPlugin(args["detector_type"])
 				self.plugin.initializeDetector(args)
-				self.detectorState = DetectorState.Warm
+				self.detector_state = DetectorState.Warm
 				self.sendResponse("success", "Detector initialized")
 
 			elif cmd == 'start_session':
@@ -121,31 +121,31 @@ class Controller(DatagramProtocol):
 		
 	def startSession(self, args):
 		
-		if self.sessionState == SessionState.Ready:
-			self.sessionState = SessionState.Busy
-			self.sessionArgs = args
-			self.sessionLoop = task.LoopingCall(self.sessionTick)
-			self.sessionLoop.start(0.05)	
+		if self.session_state == SessionState.Ready:
+			self.session_state = SessionState.Busy
+			self.session_args = args
+			self.session_loop = task.LoopingCall(self.sessionTick)
+			self.session_loop.start(0.05)	
 
 	def sessionTick(self):
 		
-		if self.spectrumState == SpectrumState.Ready:
+		if self.spectrum_state == SpectrumState.Ready:
 			d = threads.deferToThread(self.startSpectrum)
 			d.addCallbacks(self.handleSpectrumSuccess, self.handleSpectrumFailure)
-			self.spectrumState = SpectrumState.Busy
+			self.spectrum_state = SpectrumState.Busy
 			
 	def stopSession(self, args):
 		
-		self.sessionLoop.stop()
-		self.sessionState = SessionState.Ready
+		self.session_loop.stop()
+		self.session_state = SessionState.Ready
 
 	def startSpectrum(self):
 		
-		position = self.gpsClient.position
-		velocity = self.gpsClient.velocity
-		time = self.gpsClient.time
+		position = self.gps.position
+		velocity = self.gps.velocity
+		time = self.gps.time
 		
-		msg = self.plugin.acquireSpectrum(self.sessionArgs)
+		msg = self.plugin.acquireSpectrum(self.session_args)
 		
 		msg.arguments.update(position)
 		msg.arguments.update(velocity)
@@ -156,12 +156,12 @@ class Controller(DatagramProtocol):
 	def handleSpectrumSuccess(self, msg):
 		
 		self.transport.write(bytes(msg), self.addr)
-		self.spectrumState = SpectrumState.Ready
+		self.spectrum_state = SpectrumState.Ready
 
 	def handleSpectrumFailure(self, err):
 		
 		self.sendResponse("error", err.getErrorMessage())
-		self.spectrumState = SpectrumState.Ready
+		self.spectrum_state = SpectrumState.Ready
 
 reactor.listenUDP(9999, Controller())
 reactor.run()

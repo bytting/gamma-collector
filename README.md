@@ -43,6 +43,7 @@ so make sure to modify them accordingly.
 The Osprey SDK contains a "DataTypes" directory with the python modules used to manage a Canberra Osprey detector.
 For the osprey plugin to work, copy this directory to the parent directory of the gamma-collector source, 
 so that plugin_osprey.py will find it as "../DataTypes"
+The Osprey API is also expected to be available at IP address 10.0.1.4.
 
 Given a successful configuration, gammad.py will be listening on UDP port 9999 after booting up the system.
 
