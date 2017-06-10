@@ -25,20 +25,51 @@ import sys, signal, socket, argparse, json
 
 exit_dump = False
 
-def signal_handler(signal, frame):
+def signalHandler(signal, frame):
 
     global exit_dump
     exit_dump = True
 
+def handleOneResponse(skt, timeout, bufsiz):
+
+    skt.settimeout(timeout)
+
+    try:
+        data, server = skt.recvfrom(bufsiz)
+        print("received %s" % json.loads(data.decode("utf-8")))
+
+    except KeyboardInterrupt:
+        pass
+
+def handleResponses(skt, bufsiz):
+
+    global exit_dump
+
+    while not exit_dump:
+        try:
+            data, server = skt.recvfrom(bufsiz)
+            print("received %s" % json.loads(data.decode("utf-8")))
+
+        except KeyboardInterrupt:        
+            exit_dump = True
+    
+
 def main():
+
+    signal.signal(signal.SIGINT, signalHandler)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', help = "Possible values are: config, start, stop, dump")
-    parser.add_argument('ip', help = "IP address of remote node")
+    parser.add_argument('--ip', default = '127.0.0.1:9999', help = "IP address and port of remote peer. Default 127.0.0.1:9999")
+    parser.add_argument('--timeout', type = int, default = 3, help = "Receive timeout for responses in seconds. Default 3")
+    parser.add_argument('--buffersize', type = int, default = 8192, help = "Size of response buffer in bytes. Default 8192")
     args = parser.parse_args()
 
+    ip, sep, port = args.ip.partition(':')
+    if not port: port = 9999
+    address = (ip, port)
+
     skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server_address = (args.ip, 9999)
 
     try:
         if args.mode == 'config':
@@ -52,35 +83,26 @@ def main():
                 "lld": 3,
                 "uld": 110
             }
-            sent = skt.sendto(bytes(json.dumps(msg)), server_address)
-            sys.exit()
+            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
+            handleOneResponse(skt, args.timeout, args.buffersize)
 
         elif args.mode == 'start':
             msg = { "command": "start_session", "session_name": "Session 1", "livetime": 2 }
-            sent = skt.sendto(bytes(json.dumps(msg)), server_address)
-            sys.exit()
+            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
+            handleOneResponse(skt, args.timeout, args.buffersize)
 
         elif args.mode == 'stop':
             msg = { "command": "stop_session" }
-            sent = skt.sendto(bytes(json.dumps(msg)), server_address)
-            sys.exit()
+            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
+            handleOneResponse(skt, args.timeout, args.buffersize)
 
         elif args.mode == 'dump':
             msg = { "command": "dump_session" }
-            sent = skt.sendto(bytes(json.dumps(msg)), server_address)
+            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
+            handleResponses(skt, args.buffersize)
 
         else:
-            print("Invalid options")
-            sys.exit()
-
-        while not exit_dump:
-            try:
-                data, server = skt.recvfrom(8192)
-                print("received %s" % json.loads(data.decode("utf-8")))
-
-            except KeyboardInterrupt:
-                global exit_dump
-                exit_dump = True
+            print("Invalid options")            
 
     finally:
         skt.close()
