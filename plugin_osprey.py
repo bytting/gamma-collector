@@ -20,7 +20,7 @@
 import os, sys, time
 
 # Import API for the detector
-toolkitPath = os.getcwd() + os.path.sep + "../DataTypes"
+toolkitPath = os.getcwd() + os.path.sep + '../DataTypes'
 sys.path.append(toolkitPath)
 
 from DeviceFactory import *
@@ -29,20 +29,21 @@ from CommandCodes import *
 from ParameterTypes import *
 from PhaData import *
 
-detector_interface_ip = "10.0.1.4"
+detector_interface_ip = '10.0.1.4'
 detector_group = 1
 detector_input = 1
 detector = None
 
 def initializeDetector(config):	
 	
-	if set(config) < set(("voltage", "coarse_gain", "fine_gain", "num_channels", "lld", "uld")):
+	if set(config) < set(('voltage', 'coarse_gain', 'fine_gain', 'num_channels', 'lld', 'uld')):
 		raise Exception("Unable to initialize detector: missing configuration items")
 
+	# Create and acquire detecor
 	global detector
 	detector = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
 	detector.open("", detector_interface_ip)		
-	detector.lock("administrator", "password", detector_input)
+	detector.lock('administrator', 'password', detector_input)
 	
 	# Osprey API constants
 	Stabilized_Probe_Busy = 0x00080000
@@ -51,23 +52,23 @@ def initializeDetector(config):
 	# Set voltage
 	probe_status = detector.getParameter(ParameterCodes.Input_Status, detector_input)	
 	if((probe_status & Stabilized_Probe_OK) != Stabilized_Probe_OK):
-		detector.setParameter(ParameterCodes.Input_Voltage, int(config["voltage"]), detector_input)
+		detector.setParameter(ParameterCodes.Input_Voltage, int(config['voltage']), detector_input)
 		detector.setParameter(ParameterCodes.Input_VoltageStatus, True, detector_input)
 		# Wait until ramping is complete		
 		while(detector.getParameter(ParameterCodes.Input_VoltageRamping, detector_input) is True):
 			time.sleep(.4)
 	
 	# Set gain levels and discriminators
-	detector.setParameter(ParameterCodes.Input_CoarseGain, float(config["coarse_gain"]), detector_input) # [1.0, 2.0, 4.0, 8.0]
-	detector.setParameter(ParameterCodes.Input_FineGain, float(config["fine_gain"]), detector_input) # [1.0, 5.0]
-	detector.setParameter(ParameterCodes.Input_NumberOfChannels, int(config["num_channels"]), detector_input)
+	detector.setParameter(ParameterCodes.Input_CoarseGain, float(config['coarse_gain']), detector_input) # [1.0, 2.0, 4.0, 8.0]
+	detector.setParameter(ParameterCodes.Input_FineGain, float(config['fine_gain']), detector_input) # [1.0, 5.0]
+	detector.setParameter(ParameterCodes.Input_NumberOfChannels, int(config['num_channels']), detector_input)
 	detector.setParameter(ParameterCodes.Input_LLDmode, 1, detector_input) # Set manual LLD mode
-	detector.setParameter(ParameterCodes.Input_LLD, float(config["lld"]), detector_input)
-	detector.setParameter(ParameterCodes.Input_ULD, float(config["uld"]), detector_input)
+	detector.setParameter(ParameterCodes.Input_LLD, float(config['lld']), detector_input)
+	detector.setParameter(ParameterCodes.Input_ULD, float(config['uld']), detector_input)
 
 def acquireSpectrum(args):	
 
-	if set(args) < set(("session_name", "livetime")):
+	if set(args) < set(('session_name', 'livetime')):
 		raise Exception("Unable to acquire spectrum: missing arguments")
 
 	# Reset acquisition
@@ -81,7 +82,7 @@ def acquireSpectrum(args):
 	detector.setParameter(ParameterCodes.Input_CurrentGroup, detector_group, detector_input)		
 	
 	# Setup presets	
-	detector.setParameter(ParameterCodes.Preset_Live, float(args["livetime"]), detector_input)
+	detector.setParameter(ParameterCodes.Preset_Live, float(args['livetime']), detector_input)
 	# Clear data and time
 	detector.control(CommandCodes.Clear, detector_input)
 	# Start the acquisition
@@ -97,16 +98,14 @@ def acquireSpectrum(args):
 	channels = sd.getSpectrum().getCounts()
 
 	# Add spectrum data to response message
-	protocol_message = {
-		"command": "spectrum",
-		"arguments": {
-			"session_name": args["session_name"],
-			"channels": ' '.join(map(str, channels)),
-			"num_channels": len(channels),
-			"total_count": sum(channels),
-			"livetime": sd.getLiveTime(),
-			"realtime": sd.getRealTime()
-		}
-	}	
+	msg = {
+		'command': 'spectrum',
+		'session_name': args['session_name'],
+		'channels': ' '.join(map(str, channels)),
+		'num_channels': len(channels),
+		'total_count': sum(channels),
+		'livetime': sd.getLiveTime(),
+		'realtime': sd.getRealTime()
+	}
 
-	return protocol_message
+	return msg
