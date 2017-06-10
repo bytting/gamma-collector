@@ -21,7 +21,7 @@
 
 from __future__ import print_function
 
-import sys, signal, socket, argparse
+import sys, signal, socket, argparse, json
 
 exit_dump = False
 
@@ -52,22 +52,22 @@ def main():
                 "lld": 3,
                 "uld": 110
             }
-            sent = skt.sendto(bytes(msg), server_address)
+            sent = skt.sendto(bytes(json.dumps(msg)), server_address)
             sys.exit()
 
         elif args.mode == 'start':
             msg = { "command": "start_session", "session_name": "Session 1", "livetime": 2 }
-            sent = skt.sendto(bytes(msg), server_address)
+            sent = skt.sendto(bytes(json.dumps(msg)), server_address)
             sys.exit()
 
         elif args.mode == 'stop':
             msg = { "command": "stop_session" }
-            sent = skt.sendto(msg, server_address)
+            sent = skt.sendto(bytes(json.dumps(msg)), server_address)
             sys.exit()
 
         elif args.mode == 'dump':
             msg = { "command": "dump_session" }
-            sent = skt.sendto(msg, server_address)
+            sent = skt.sendto(bytes(json.dumps(msg)), server_address)
 
         else:
             print("Invalid options")
@@ -76,7 +76,7 @@ def main():
         while not exit_dump:
             try:
                 data, server = skt.recvfrom(8192)
-                print("received %s" % data)
+                print("received %s" % data.decode("utf-8"))
 
             except KeyboardInterrupt:
                 global exit_dump

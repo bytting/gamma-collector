@@ -55,9 +55,9 @@ class Controller(DatagramProtocol):
 
 	def sendResponse(self, command, status_message):
 
-		resp = '{"command":"%s", "message":"%s"}' % (command, status_message)
-		log.msg(resp)
-		self.transport.write(bytes(resp), self.addr)
+		msg = {"command":"%s", "message":"%s"} % (command, status_message)
+		log.msg(json.dumps(msg))
+		self.transport.write(bytes(json.dumps(msg)), self.addr)
 
 	def loadPlugin(self, name):
 				
@@ -81,7 +81,7 @@ class Controller(DatagramProtocol):
 		self.addr = addr
 
 		try:					
-			msg = json.loads(data)
+			msg = json.loads(data.decode("utf-8"))
 
 			if not 'command' in msg:
 				raise Exception("Invalid message");
@@ -170,7 +170,7 @@ class Controller(DatagramProtocol):
 
 	def handleSpectrumSuccess(self, msg):
 		
-		self.transport.write(bytes(msg), self.addr)
+		self.transport.write(bytes(json.dumps(msg)), self.addr)
 		self.spectrum_state = SpectrumState.Ready
 
 	def handleSpectrumFailure(self, err):
