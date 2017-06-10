@@ -17,7 +17,7 @@
 #
 # Authors: Dag Robole,
 
-import os, sys, time, gc_proto as proto
+import os, sys, time
 
 # Import API for the detector
 toolkitPath = os.getcwd() + os.path.sep + "../DataTypes"
@@ -44,44 +44,6 @@ def initializeDetector(config):
 	detector.open("", detector_interface_ip)		
 	detector.lock("administrator", "password", detector_input)
 	
-	_stabilizeProbe(config)
-
-def acquireSpectrum(args):	
-
-	if set(args) < set(("session_name", "livetime")):
-		raise Exception("Unable to acquire spectrum: missing arguments")
-
-	_resetAcquisition()
-	
-	# Setup presets	
-	detector.setParameter(ParameterCodes.Preset_Live, float(args["livetime"]), detector_input)
-	# Clear data and time
-	detector.control(CommandCodes.Clear, detector_input)
-	# Start the acquisition
-	detector.control(CommandCodes.Start, detector_input)	
-	
-	while True:	
-		sd = detector.getSpectralData(detector_input, detector_group)
-		if ((0 == (StatusBits.Busy & sd.getStatus())) and (0 == (StatusBits.Waiting & sd.getStatus()))):
-			break
-		time.sleep(.1)
-	
-	# Extract last spectrum from detector and prepare parameters
-	chans = sd.getSpectrum().getCounts()
-
-	# Add spectrum data to response message
-	msg = proto.Message('spectrum')
-	msg.arguments["session_name"] = args["session_name"]
-	msg.arguments["channels"] = ' '.join(map(str, chans))
-	msg.arguments["num_channels"] = len(chans)
-	msg.arguments["total_count"] = sum(chans)
-	msg.arguments["livetime"] = sd.getLiveTime()
-	msg.arguments["realtime"] = sd.getRealTime()
-
-	return msg
-
-def _stabilizeProbe(config):
-		
 	# Osprey API constants
 	Stabilized_Probe_Busy = 0x00080000
 	Stabilized_Probe_OK = 0x00100000
@@ -103,21 +65,48 @@ def _stabilizeProbe(config):
 	detector.setParameter(ParameterCodes.Input_LLD, float(config["lld"]), detector_input)
 	detector.setParameter(ParameterCodes.Input_ULD, float(config["uld"]), detector_input)
 
-def _resetAcquisition():
+def acquireSpectrum(args):	
+
+	if set(args) < set(("session_name", "livetime")):
+		raise Exception("Unable to acquire spectrum: missing arguments")
+
+	# Reset acquisition
+	detector.control(CommandCodes.Stop, detector_input)	
+	detector.control(CommandCodes.Abort, detector_input)	
+	detector.setParameter(ParameterCodes.Input_SCAstatus, 0, detector_input)	
+	detector.setParameter(ParameterCodes.Counter_Status, 0, detector_input)	
+	detector.setParameter(ParameterCodes.Input_Mode, 0, detector_input)	
+	detector.setParameter(ParameterCodes.Preset_Options, 1, detector_input)	
+	detector.control(CommandCodes.Clear, detector_input)	
+	detector.setParameter(ParameterCodes.Input_CurrentGroup, detector_group, detector_input)		
 	
-	# Stop any current acquisitions
-	detector.control(CommandCodes.Stop, detector_input)
-	# Abort acquisition (only needed for MSS or MCS collections)
-	detector.control(CommandCodes.Abort, detector_input)
-	# Stop SCA collection
-	detector.setParameter(ParameterCodes.Input_SCAstatus, 0, detector_input)
-	# Stop Aux counter collection
-	detector.setParameter(ParameterCodes.Counter_Status, 0, detector_input)
-	# Set the acquisition mode. The Only Available Spectral in Osprey is Pha = 0
-	detector.setParameter(ParameterCodes.Input_Mode, 0, detector_input)
-	# Setup presets
-	detector.setParameter(ParameterCodes.Preset_Options, 1, detector_input)
+	# Setup presets	
+	detector.setParameter(ParameterCodes.Preset_Live, float(args["livetime"]), detector_input)
 	# Clear data and time
 	detector.control(CommandCodes.Clear, detector_input)
-	# Set the current memory group
-	detector.setParameter(ParameterCodes.Input_CurrentGroup, detector_group, detector_input)	
+	# Start the acquisition
+	detector.control(CommandCodes.Start, detector_input)	
+	
+	while True:	
+		sd = detector.getSpectralData(detector_input, detector_group)
+		if ((0 == (StatusBits.Busy & sd.getStatus())) and (0 == (StatusBits.Waiting & sd.getStatus()))):
+			break
+		time.sleep(.1)
+	
+	# Extract spectrum from detector
+	channels = sd.getSpectrum().getCounts()
+
+	# Add spectrum data to response message
+	protocol_message = {
+		"command": "spectrum",
+		"arguments": {
+			"session_name": args["session_name"],
+			"channels": ' '.join(map(str, channels)),
+			"num_channels": len(channels),
+			"total_count": sum(channels),
+			"livetime": sd.getLiveTime(),
+			"realtime": sd.getRealTime()
+		}
+	}	
+
+	return protocol_message

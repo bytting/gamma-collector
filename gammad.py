@@ -145,17 +145,17 @@ class Controller(DatagramProtocol):
 		velocity = self.gps.velocity
 		time = self.gps.time
 		
-		msg = self.plugin.acquireSpectrum(self.session_args)
+		protocol_message = self.plugin.acquireSpectrum(self.session_args)
 		
-		msg.arguments.update(position)
-		msg.arguments.update(velocity)
-		msg.arguments["time"] = time
+		protocol_message["arguments"].update(position)
+		protocol_message["arguments"].update(velocity)
+		protocol_message["arguments"]["time"] = time
 
-		return msg
+		return protocol_message
 
-	def handleSpectrumSuccess(self, msg):
+	def handleSpectrumSuccess(self, protocol_message):
 		
-		self.transport.write(bytes(msg), self.addr)
+		self.transport.write(bytes(protocol_message), self.addr)
 		self.spectrum_state = SpectrumState.Ready
 
 	def handleSpectrumFailure(self, err):

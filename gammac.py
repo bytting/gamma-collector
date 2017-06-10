@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 #
-# Terminal client for detector controller
+# Terminal client for gamma measurements
 # Copyright (C) 2016  Norwegain Radiation Protection Authority
 #
 # This program is free software; you can redistribute it and/or modify
@@ -21,55 +21,54 @@
 
 from __future__ import print_function
 
-from twisted.internet import reactor
-from twisted.internet.protocol import DatagramProtocol
-from twisted.python import log
-import sys, argparse
+import sys, signal, socket, argparse
 
-log.startLogging(sys.stdout)
+exit_dump = False
 
-class GammaClient(DatagramProtocol):
+def signal_handler(signal, frame):
+    global exit_dump
+    exit_dump = True
 
-	def __init__(self):
-	
-		parser = argparse.ArgumentParser()
-		parser.add_argument("mode", help = "Possible values are: config, start, stop, dump")
-		parser.add_argument("ip", help = "IP address of remote node")
-		args = parser.parse_args()
-		self.mode = args.mode
-		self.ip = args.ip
-	
-	def startProtocol(self):
-			
-		self.transport.connect(self.ip, 9999)
-        
-		if self.mode == 'config':			
-			self.transport.write(b'{"command":"detector_config", "arguments":{"detector_type":"osprey", "voltage":775, "coarse_gain":1.0, "fine_gain":1.375, "num_channels":1024, "lld":3, "uld":110}}')
-			sys.exit()
-			
-		elif self.mode == 'start':			
-			self.transport.write(b'{"command":"start_session", "arguments":{"session_name":"Session 1", "livetime":2}}')
-			sys.exit()
-			
-		elif self.mode == 'stop':			
-			self.transport.write(b'{"command":"stop_session", "arguments":{}}')
-			sys.exit()
-			
-		elif self.mode == 'dump':			
-			self.transport.write(b'{"command":"dump_session", "arguments":{}}')
-			
-		else:
-			log('Invalid options')
-			sys.exit()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("mode", help = "Possible values are: config, start, stop, dump")
+    parser.add_argument("ip", help = "IP address of remote node")
+    args = parser.parse_args()
 
-	def datagramReceived(self, data, addr):	
-				
-		print("Received %s from %s" % (data, addr))	
-	
-	def connectionRefused(self):		
-	
-		print("No server listening")
-		sys.exit()
+    skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_address = (args.ip, 9999)
 
-reactor.listenUDP(0, GammaClient())
-reactor.run()
+    try:
+        if args.mode == 'config':
+            msg = b'{"command":"detector_config", "arguments":{"detector_type":"osprey", "voltage":775, "coarse_gain":1.0, "fine_gain":1.375, "num_channels":1024, "lld":3, "uld":110}}'
+            sent = skt.sendto(msg, server_address)
+            sys.exit()
+        elif args.mode == 'start':
+            msg = b'{"command":"start_session", "arguments":{"session_name":"Session 1", "livetime":2}}'
+            sent = skt.sendto(msg, server_address)
+            sys.exit()
+        elif args.mode == 'stop':
+            msg = b'{"command":"stop_session", "arguments":{}}'
+            sent = skt.sendto(msg, server_address)
+            sys.exit()
+        elif args.mode == 'dump':
+            msg = b'{"command":"dump_session", "arguments":{}}'
+            sent = skt.sendto(msg, server_address)
+        else:
+            print('Invalid options')
+            sys.exit()
+
+        while not exit_dump:
+            try:
+                data, server = skt.recvfrom(8192)
+                print("received %s" % data)
+            except KeyboardInterrupt:
+                global exit_dump
+                exit_dump = True
+
+    finally:
+        skt.close()
+
+if __name__ == "__main__":
+    main()
+
