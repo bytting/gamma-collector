@@ -41,7 +41,7 @@ class Controller(DatagramProtocol):
 
 	def __init__(self):
 		
-		self.addr = None		
+		self.client_address = None		
 		self.session_args = None
 		self.session_loop = None
 		self.session_state = SessionState.Ready
@@ -57,7 +57,8 @@ class Controller(DatagramProtocol):
 
 		msg = {"command":"%s" % command, "message":"%s" % status_message}
 		log.msg("Sending message: %s" % json.dumps(msg))
-		self.transport.write(bytes(json.dumps(msg)), self.addr)
+		if self.client_address is not None:
+			self.transport.write(bytes(json.dumps(msg)), self.client_address)
 
 	def loadPlugin(self, name):
 				
@@ -76,12 +77,13 @@ class Controller(DatagramProtocol):
 		log.msg('GPS thread stopped')        
 		
 	def datagramReceived(self, data, addr):
-		
-		log.msg("Received %s from %s" % (data, addr))
-		self.addr = addr
+				
+		self.client_address = addr
 
 		try:					
 			msg = json.loads(data.decode("utf-8"))
+
+			log.msg("Received %s from %s" % (msg, self.client_address)) # FIXME
 
 			if not 'command' in msg:
 				raise Exception("Invalid message");
@@ -170,7 +172,9 @@ class Controller(DatagramProtocol):
 
 	def handleSpectrumSuccess(self, msg):
 		
-		self.transport.write(bytes(json.dumps(msg)), self.addr)
+		if self.client_address is not None:
+			self.transport.write(bytes(json.dumps(msg)), self.client_address)
+			
 		self.spectrum_state = SpectrumState.Ready
 
 	def handleSpectrumFailure(self, err):

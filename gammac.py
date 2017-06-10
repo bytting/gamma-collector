@@ -76,7 +76,7 @@ def main():
         while not exit_dump:
             try:
                 data, server = skt.recvfrom(8192)
-                print("received %s" % data.decode("utf-8"))
+                print("received %s" % json.loads(data.decode("utf-8")))
 
             except KeyboardInterrupt:
                 global exit_dump
