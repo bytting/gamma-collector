@@ -55,8 +55,8 @@ class Controller(DatagramProtocol):
 
 	def sendResponse(self, command, status_message):
 
-		msg = {"command":"%s", "message":"%s"} % (command, status_message)
-		log.msg(json.dumps(msg))
+		msg = {"command":"%s" % command, "message":"%s" % status_message}
+		log.msg("Sending message: %s" % json.dumps(msg))
 		self.transport.write(bytes(json.dumps(msg)), self.addr)
 
 	def loadPlugin(self, name):
