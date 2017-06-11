@@ -18,6 +18,7 @@
 # Authors: Dag Robole,
 
 import os, sys, time
+from gc_exceptions import ProtocolError
 
 # Import API for the detector
 toolkitPath = os.getcwd() + os.path.sep + '../DataTypes'
@@ -37,7 +38,7 @@ detector = None
 def initializeDetector(config):	
 	
 	if set(config) < set(('voltage', 'coarse_gain', 'fine_gain', 'num_channels', 'lld', 'uld')):
-		raise Exception("Unable to initialize detector: missing configuration items")
+		raise ProtocolError('detector_config_error', "Unable to initialize detector: missing configuration items")
 
 	# Create and acquire detecor
 	global detector
@@ -69,7 +70,7 @@ def initializeDetector(config):
 def acquireSpectrum(args):	
 
 	if set(args) < set(('session_name', 'livetime')):
-		raise Exception("Unable to acquire spectrum: missing arguments")
+		raise ProtocolError('error', "Unable to acquire spectrum: Missing arguments")
 
 	# Reset acquisition
 	detector.control(CommandCodes.Stop, detector_input)	

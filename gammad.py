@@ -28,6 +28,7 @@ from twisted.internet.protocol import DatagramProtocol
 from twisted.python import log
 
 import gc_gps as gps
+from gc_exceptions import ProtocolError
 
 log.startLogging(sys.stdout)
 
@@ -46,24 +47,26 @@ class Controller(DatagramProtocol):
 		self.session_loop = None
 		self.session_state = SessionState.Ready
 		self.spectrum_state = SpectrumState.Ready
-		self.detector_state = DetectorState.Cold
+		self.spectrum_index = 0
+		self.detector_state = DetectorState.Cold		
 		
 		self.gps_stop = threading.Event() # Event used to notify gps thread
 		self.gps = gps.GpsThread(self.gps_stop) # Create the gps thread
 		
 		self.plugin = None
 
-	def sendResponse(self, command, status_message):
+	def sendResponse(self, status_command, status_message):
 
-		msg = {"command":"%s" % command, "message":"%s" % status_message}
-		log.msg("Sending message: %s" % json.dumps(msg))
+		log.msg("Response: %s: %s" % (status_command, status_message))
+
 		if self.client_address is not None:
+			msg = {"command":"%s" % status_command, "message":"%s" % status_message}
 			self.transport.write(bytes(json.dumps(msg)), self.client_address)
 
 	def loadPlugin(self, name):
 				
-		module_name = 'plugin_' + name
-		return sys.modules[module_name] if module_name in sys.modules else importlib.import_module(module_name)
+		modname = 'plugin_' + name
+		return sys.modules[modname] if modname in sys.modules else importlib.import_module(modname)
 		
 	def startProtocol(self):		
 		
@@ -86,43 +89,48 @@ class Controller(DatagramProtocol):
 			log.msg("Received %s from %s" % (msg, self.client_address)) # FIXME
 
 			if not 'command' in msg:
-				raise Exception("Invalid message");
+				raise ProtocolError('error', "Invalid message");
 
 			cmd = msg['command']
 			
 			if cmd == 'detector_config':
 				if self.session_state == SessionState.Busy:
-					self.sendResponse('detector_config_error', "Detector config failed, session is active")
-				else:
-					self.plugin = self.loadPlugin(msg['detector_type'])
-					self.plugin.initializeDetector(msg)
-					self.detector_state = DetectorState.Warm
-					self.sendResponse('detector_config_success', "Detector initialized")
+					raise ProtocolError('detector_config_error', "Detector config failed, session is active")
+				if not 'detector_type' in msg:
+					raise ProtocolError('detector_config_error', "Detector config failed, detector_type missing")					
+				
+				self.plugin = self.loadPlugin(msg['detector_type'])
+				self.plugin.initializeDetector(msg)
+				self.detector_state = DetectorState.Warm
+				self.sendResponse('detector_config_success', "Detector initialized")
 
 			elif cmd == 'start_session':
 				if self.session_state == SessionState.Busy:
-					self.sendResponse('start_session_error', "Session is already active")
-				else:
-					self.initializeSession(msg)
-					self.startSession(msg)
-					self.sendResponse('start_session_success', "Session started")
+					raise ProtocolError('start_session_error', "Session is already active")
+
+				self.spectrum_index = 0
+				self.initializeSession(msg)
+				self.startSession(msg)
+				self.sendResponse('start_session_success', "Session started")
 
 			elif cmd == 'stop_session':
 				if self.session_state == SessionState.Ready:
-					self.sendResponse('stop_session_error', "No session is running")
-				else:
-					self.stopSession(msg)
-					self.finalizeSession(msg)
-					self.sendResponse('stop_session_success', "Session stopped")
+					raise ProtocolError('stop_session_error', "No session is running")
+
+				self.stopSession(msg)
+				self.finalizeSession(msg)
+				self.sendResponse('stop_session_success', "Session stopped")
 
 			elif cmd == 'dump_session':
 				if self.session_state == SessionState.Ready:
-					self.sendResponse('dump_session_error', "No session is running")
-				else:
-					self.sendResponse('dump_session_success', "Registered for dump")
+					raise ProtocolError('dump_session_error', "No session is running")
 
-			else:
-				raise Exception("Unknown command: %s" % cmd)
+				self.sendResponse('dump_session_success', "Registered for dump")
+
+			else: raise Exception("Unknown command: %s" % cmd)
+
+		except ProtocolError as pe:
+			self.sendResponse(pe.command, pe.message)
 
 		except Exception as e:
 			self.sendResponse('error', str(e))
@@ -166,12 +174,15 @@ class Controller(DatagramProtocol):
 		
 		msg.update(position)
 		msg.update(velocity)
-		msg["time"] = time
+		msg['time'] = time
 
 		return msg
 
 	def handleSpectrumSuccess(self, msg):
 		
+		msg['index'] = self.spectrum_index
+		self.spectrum_index = self.spectrum_index + 1		
+
 		if self.client_address is not None:
 			self.transport.write(bytes(json.dumps(msg)), self.client_address)
 			
@@ -184,4 +195,3 @@ class Controller(DatagramProtocol):
 
 reactor.listenUDP(9999, Controller())
 reactor.run()
-
