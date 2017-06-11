@@ -38,19 +38,26 @@ def handleOneResponse(skt, timeout, bufsiz):
         data, server = skt.recvfrom(bufsiz)
         print("received %s" % json.loads(data.decode("utf-8")))
 
+    except socket.timeout:
+        print("Timeout waiting for response")
+    except socket.error as err:
+        print("Socket error: " + str(err))
     except KeyboardInterrupt:
         pass
 
-def handleResponses(skt, bufsiz):
+def handleResponses(skt, bufsiz):    
 
     global exit_dump
-
+    
     while not exit_dump:
         try:
             data, server = skt.recvfrom(bufsiz)
             print("received %s" % json.loads(data.decode("utf-8")))
 
-        except KeyboardInterrupt:        
+        except socket.error as err:
+            print("Socket error: " + str(err))
+
+        except KeyboardInterrupt:            
             exit_dump = True
     
 
@@ -66,7 +73,7 @@ def main():
     args = parser.parse_args()
 
     ip, sep, port = args.ip.partition(':')
-    if not port: port = 9999
+    port = 9999 if not port else int(port)
     address = (ip, port)
 
     skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
