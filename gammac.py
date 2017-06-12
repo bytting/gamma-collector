@@ -40,8 +40,10 @@ def handleOneResponse(skt, timeout, bufsiz):
 
     except socket.timeout:
         print("Timeout waiting for response")
+
     except socket.error as err:
         print("Socket error: " + str(err))
+        
     except KeyboardInterrupt:
         pass
 

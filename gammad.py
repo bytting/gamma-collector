@@ -181,9 +181,11 @@ class Controller(DatagramProtocol):
 		return msg
 
 	def handleSpectrumSuccess(self, msg):
-		
+
+		log.msg("Spectrum %d ready" % self.spectrum_index) # FIXME
+
 		msg['index'] = self.spectrum_index
-		self.spectrum_index = self.spectrum_index + 1		
+		self.spectrum_index = self.spectrum_index + 1				
 
 		if self.client_address is not None:
 			self.transport.write(bytes(json.dumps(msg)), self.client_address)
@@ -197,7 +199,7 @@ class Controller(DatagramProtocol):
 		self.spectrum_failures = self.spectrum_failures + 1
 		if self.spectrum_failures >= 3:
 			stopSession({})
-			self.sendResponse('error', "Acquiering spectrum has failed 3 times, stopping session")
+			self.sendResponse('error', "Acquiring spectrum has failed 3 times, stopping session")
 
 		self.spectrum_state = SpectrumState.Ready
 
