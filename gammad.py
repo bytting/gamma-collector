@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python2
 #
 # Detector controller for gamma measurements
 # Copyright (C) 2016  Norwegain Radiation Protection Authority
@@ -35,25 +35,25 @@ log.startLogging(sys.stdout)
 class SessionState: Ready, Busy = range(2)
 
 class SpectrumState: Ready, Busy = range(2)
-	
+
 class DetectorState: Cold, Warm = range(2)
-	
+
 class Controller(DatagramProtocol):
 
 	def __init__(self):
-		
-		self.client_address = None		
+
+		self.client_address = None
 		self.session_args = None
 		self.session_loop = None
 		self.session_state = SessionState.Ready
 		self.spectrum_state = SpectrumState.Ready
 		self.spectrum_index = 0
 		self.spectrum_failures = 0
-		self.detector_state = DetectorState.Cold		
-		
+		self.detector_state = DetectorState.Cold
+
 		self.gps_stop = threading.Event() # Event used to notify gps thread
 		self.gps = gps.GpsThread(self.gps_stop) # Create the gps thread
-		
+
 		self.plugin = None
 
 	def sendResponse(self, status_command, status_message):
@@ -65,26 +65,26 @@ class Controller(DatagramProtocol):
 			self.transport.write(bytes(json.dumps(msg)), self.client_address)
 
 	def loadPlugin(self, name):
-				
+
 		modname = 'plugin_' + name
 		return sys.modules[modname] if modname in sys.modules else importlib.import_module(modname)
-		
-	def startProtocol(self):		
-		
+
+	def startProtocol(self):
+
 		self.gps.start()
 		log.msg('GPS thread started')
-	
+
 	def stopProtocol(self):
-		
+
 		self.gps_stop.set()
 		self.gps.join()
-		log.msg('GPS thread stopped')        
-		
+		log.msg('GPS thread stopped')
+
 	def datagramReceived(self, data, addr):
-				
+
 		self.client_address = addr
 
-		try:					
+		try:
 			msg = json.loads(data.decode("utf-8"))
 
 			log.msg("Received %s from %s" % (msg, self.client_address)) # FIXME
@@ -93,13 +93,13 @@ class Controller(DatagramProtocol):
 				raise ProtocolError('error', "Invalid message");
 
 			cmd = msg['command']
-			
+
 			if cmd == 'detector_config':
 				if self.session_state == SessionState.Busy:
 					raise ProtocolError('detector_config_error', "Detector config failed, session is active")
 				if not 'detector_type' in msg:
 					raise ProtocolError('detector_config_error', "Detector config failed, detector_type missing")					
-				
+
 				self.plugin = self.loadPlugin(msg['detector_type'])
 				self.plugin.initializeDetector(msg)
 				self.detector_state = DetectorState.Warm
@@ -138,15 +138,15 @@ class Controller(DatagramProtocol):
 			self.sendResponse('error', str(e))
 
 	def initializeSession(self, msg):
-				
+
 		log.msg("Initializing session " + msg['session_name'])
 		# create database etc.
-		
+
 	def finalizeSession(self, msg):
-		
-		log.msg("Finalizing session " + msg['session_name'])
+
+		log.msg("Finalizing session")
 		# close database etc.
-		
+
 	def startSession(self, msg):
 
 		self.session_state = SessionState.Busy
@@ -160,20 +160,20 @@ class Controller(DatagramProtocol):
 		self.session_state = SessionState.Ready
 
 	def sessionTick(self):
-		
+
 		if self.spectrum_state == SpectrumState.Ready:
 			d = threads.deferToThread(self.startSpectrum)
 			d.addCallbacks(self.handleSpectrumSuccess, self.handleSpectrumFailure)
 			self.spectrum_state = SpectrumState.Busy
 
 	def startSpectrum(self):
-		
+
 		position = self.gps.position
 		velocity = self.gps.velocity
 		time = self.gps.time
-		
+
 		msg = self.plugin.acquireSpectrum(self.session_args)
-		
+
 		msg.update(position)
 		msg.update(velocity)
 		msg['time'] = time
@@ -185,15 +185,15 @@ class Controller(DatagramProtocol):
 		log.msg("Spectrum %d ready" % self.spectrum_index) # FIXME
 
 		msg['index'] = self.spectrum_index
-		self.spectrum_index = self.spectrum_index + 1				
+		self.spectrum_index = self.spectrum_index + 1
 
 		if self.client_address is not None:
 			self.transport.write(bytes(json.dumps(msg)), self.client_address)
-			
+
 		self.spectrum_state = SpectrumState.Ready
 
 	def handleSpectrumFailure(self, err):
-		
+
 		self.sendResponse('error', err.getErrorMessage())
 
 		self.spectrum_failures = self.spectrum_failures + 1
