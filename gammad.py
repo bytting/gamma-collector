@@ -103,7 +103,9 @@ class Controller(DatagramProtocol):
 				self.plugin = self.loadPlugin(msg['detector_type'])
 				self.plugin.initializeDetector(msg)
 				self.detector_state = DetectorState.Warm
-				self.sendResponse('detector_config_success', "Detector initialized")
+				#self.sendResponse('detector_config_success', "Detector initialized")
+                                msg["command"] = 'detector_config_success'
+                                self.transport.write(bytes(json.dumps(msg)), self.client_address)
 
 			elif cmd == 'start_session':
 				if self.session_state == SessionState.Busy:
@@ -113,7 +115,8 @@ class Controller(DatagramProtocol):
 				self.startSession(msg)
 				self.spectrum_index = 0
 				self.spectrum_failures = 0
-				self.sendResponse('start_session_success', "Session started")
+                                msg["command"] = 'start_session_success'
+                                self.transport.write(bytes(json.dumps(msg)), self.client_address)
 
 			elif cmd == 'stop_session':
 				if self.session_state == SessionState.Ready:
