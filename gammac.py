@@ -42,26 +42,19 @@ def handleOneResponse(skt, timeout, bufsiz):
         print("Timeout waiting for response")
 
     except socket.error as err:
-        print("Socket error: " + str(err))
-        
-    except KeyboardInterrupt:
-        pass
+        print("Interrupted")
 
-def handleResponses(skt, bufsiz):    
+def handleResponses(skt, bufsiz):
 
     global exit_dump
-    
+
     while not exit_dump:
         try:
             data, server = skt.recvfrom(bufsiz)
             print("received %s" % json.loads(data.decode("utf-8")))
 
         except socket.error as err:
-            print("Socket error: " + str(err))
-
-        except KeyboardInterrupt:            
-            exit_dump = True
-    
+            pass
 
 def main():
 
@@ -70,7 +63,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', help = "Possible values are: config, start, stop, dump")
     parser.add_argument('--ip', default = '127.0.0.1:9999', help = "IP address and port of remote peer. Default 127.0.0.1:9999")
-    parser.add_argument('--timeout', type = int, default = 3, help = "Receive timeout for responses in seconds. Default 3")
+    parser.add_argument('--timeout', type = int, default = 5, help = "Receive timeout for responses in seconds. Default 5")
     parser.add_argument('--buffersize', type = int, default = 8192, help = "Size of response buffer in bytes. Default 8192")
     args = parser.parse_args()
 
@@ -93,7 +86,7 @@ def main():
                 "uld": 110
             }
             nbytes = skt.sendto(bytes(json.dumps(msg)), address)
-            handleOneResponse(skt, args.timeout, args.buffersize)
+            handleOneResponse(skt, 30, args.buffersize)
 
         elif args.mode == 'start':
             msg = { "command": "start_session", "session_name": "Session 1", "livetime": 2 }
@@ -111,7 +104,7 @@ def main():
             handleResponses(skt, args.buffersize)
 
         else:
-            print("Invalid options")            
+            print("Invalid options")
 
     finally:
         skt.close()
