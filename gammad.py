@@ -56,13 +56,22 @@ class Controller(DatagramProtocol):
 
 		self.plugin = None
 
-	def sendResponse(self, status_command, status_message):
+	def sendResponse(self, msg):
 
-		log.msg("Response: %s: %s" % (status_command, status_message))
+		log.msg("Send response: %s" % msg['command'])
 
 		if self.client_address is not None:
-			msg = {"command":"%s" % status_command, "message":"%s" % status_message}
 			self.transport.write(bytes(json.dumps(msg)), self.client_address)
+
+	def sendResponseCommand(self, command, msg):
+
+		msg['command'] = command
+		self.sendResponse(msg)
+
+	def sendResponseInfo(self, command, info):
+		
+		msg = {'command':"%s" % command, 'message':"%s" % info}
+		self.sendResponse(msg)
 
 	def loadPlugin(self, name):
 
@@ -103,46 +112,42 @@ class Controller(DatagramProtocol):
 				self.plugin = self.loadPlugin(msg['detector_type'])
 				self.plugin.initializeDetector(msg)
 				self.detector_state = DetectorState.Warm
-				#self.sendResponse('detector_config_success', "Detector initialized")
-                                msg["command"] = 'detector_config_success'
-                                self.transport.write(bytes(json.dumps(msg)), self.client_address)
+
+				self.sendResponseCommand('detector_config_success', msg)
 
 			elif cmd == 'start_session':
-				if self.session_state == SessionState.Busy:
-					raise ProtocolError('start_session_error', "Session is already active")
+				if self.session_state != SessionState.Busy:
+					self.initializeSession(msg)
+					self.startSession(msg)
 
-				self.initializeSession(msg)
-				self.startSession(msg)
-				self.spectrum_index = 0
-				self.spectrum_failures = 0
-                                msg["command"] = 'start_session_success'
-                                self.transport.write(bytes(json.dumps(msg)), self.client_address)
+				self.sendResponseCommand('start_session_success', msg)
 
 			elif cmd == 'stop_session':
-				if self.session_state == SessionState.Ready:
-					raise ProtocolError('stop_session_error', "No session is running")
+				if self.session_state != SessionState.Ready:
+					self.stopSession(msg)
+					self.finalizeSession(msg)
 
-				self.stopSession(msg)
-				self.finalizeSession(msg)
-				self.sendResponse('stop_session_success', "Session stopped")
+				self.sendResponseCommand('stop_session_success', msg)
 
 			elif cmd == 'dump_session':
 				if self.session_state == SessionState.Ready:
 					raise ProtocolError('dump_session_error', "No session is running")
 
-				self.sendResponse('dump_session_success', "Registered for dump")
+				self.sendResponseCommand('dump_session_success', msg)
 
 			else: raise Exception("Unknown command: %s" % cmd)
 
 		except ProtocolError as pe:
-			self.sendResponse(pe.command, pe.message)
+			self.sendResponseInfo(pe.command, pe.message)
 
 		except Exception as e:
-			self.sendResponse('error', str(e))
+			self.sendResponseInfo('error', str(e))
 
 	def initializeSession(self, msg):
 
 		log.msg("Initializing session " + msg['session_name'])
+		self.spectrum_index = 0
+		self.spectrum_failures = 0
 		# create database etc.
 
 	def finalizeSession(self, msg):
@@ -197,12 +202,12 @@ class Controller(DatagramProtocol):
 
 	def handleSpectrumFailure(self, err):
 
-		self.sendResponse('error', err.getErrorMessage())
+		self.sendResponseInfo('error', err.getErrorMessage())
 
 		self.spectrum_failures = self.spectrum_failures + 1
 		if self.spectrum_failures >= 3:
 			stopSession({})
-			self.sendResponse('error', "Acquiring spectrum has failed 3 times, stopping session")
+			self.sendResponseInfo('error', "Acquiring spectrum has failed 3 times, stopping session")
 
 		self.spectrum_state = SpectrumState.Ready
 
