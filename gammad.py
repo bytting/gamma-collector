@@ -48,6 +48,7 @@ class Controller(DatagramProtocol):
 		self.session_state = SessionState.Ready
 		self.spectrum_state = SpectrumState.Ready
 		self.spectrum_index = 0
+		self.spectrum_failures = 0
 		self.detector_state = DetectorState.Cold		
 		
 		self.gps_stop = threading.Event() # Event used to notify gps thread
@@ -108,9 +109,10 @@ class Controller(DatagramProtocol):
 				if self.session_state == SessionState.Busy:
 					raise ProtocolError('start_session_error', "Session is already active")
 
-				self.spectrum_index = 0
 				self.initializeSession(msg)
 				self.startSession(msg)
+				self.spectrum_index = 0
+				self.spectrum_failures = 0
 				self.sendResponse('start_session_success', "Session started")
 
 			elif cmd == 'stop_session':
@@ -191,6 +193,12 @@ class Controller(DatagramProtocol):
 	def handleSpectrumFailure(self, err):
 		
 		self.sendResponse('error', err.getErrorMessage())
+
+		self.spectrum_failures = self.spectrum_failures + 1
+		if self.spectrum_failures >= 3:
+			stopSession({})
+			self.sendResponse('error', "Acquiering spectrum has failed 3 times, stopping session")
+
 		self.spectrum_state = SpectrumState.Ready
 
 reactor.listenUDP(9999, Controller())
