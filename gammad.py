@@ -190,14 +190,9 @@ class Controller(DatagramProtocol):
 
 	def handleSpectrumSuccess(self, msg):
 
-		log.msg("Spectrum %d ready" % self.spectrum_index) # FIXME
-
 		msg['index'] = self.spectrum_index
 		self.spectrum_index = self.spectrum_index + 1
-
-		if self.client_address is not None:
-			self.transport.write(bytes(json.dumps(msg)), self.client_address)
-
+		self.sendResponse(msg)
 		self.spectrum_state = SpectrumState.Ready
 
 	def handleSpectrumFailure(self, err):
