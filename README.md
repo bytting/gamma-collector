@@ -49,5 +49,5 @@ Given a successful configuration, gammad.py will be listening on UDP port 9999 a
 
 Sessions will be stored locally under the directory ``$(HOME)/ashes``
 
-Note that the python scripts gammad.py and gammac.py contains hash-bang references to python2, 
+Note that the python scripts gammad.py and gammac.py contains Shebang references to python2, 
 this may need to be changed when running on other systems than ArchlinuxARM.

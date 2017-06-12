@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python2
 #
 # Terminal client for gamma measurements
 # Copyright (C) 2016  Norwegain Radiation Protection Authority
