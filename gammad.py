@@ -105,33 +105,34 @@ class Controller(DatagramProtocol):
 
 			if cmd == 'detector_config':
 				if self.session_state == SessionState.Busy:
-					raise ProtocolError('detector_config_error', "Detector config failed, session is active")
+					raise ProtocolError('detector_config_busy', "Detector config failed, session is active")
 				if not 'detector_type' in msg:
-					raise ProtocolError('detector_config_error', "Detector config failed, detector_type missing")					
+					raise ProtocolError('detector_config_error', "Detector config failed, detector_type missing")
 
 				self.plugin = self.loadPlugin(msg['detector_type'])
 				self.plugin.initializeDetector(msg)
 				self.detector_state = DetectorState.Warm
-
 				self.sendResponseCommand('detector_config_success', msg)
 
 			elif cmd == 'start_session':
-				if self.session_state != SessionState.Busy:
-					self.initializeSession(msg)
-					self.startSession(msg)
+				if self.session_state == SessionState.Busy:
+					raise ProtocolError('start_session_busy', "Start session failed, session is active")
 
+				self.initializeSession(msg)
+				self.startSession(msg)
 				self.sendResponseCommand('start_session_success', msg)
 
 			elif cmd == 'stop_session':
-				if self.session_state != SessionState.Ready:
-					self.stopSession(msg)
-					self.finalizeSession(msg)
+				if self.session_state == SessionState.Ready:
+					raise ProtocolError('stop_session_none', "Stop session failed, no session active")
 
+				self.stopSession(msg)
+				self.finalizeSession(msg)
 				self.sendResponseCommand('stop_session_success', msg)
 
 			elif cmd == 'dump_session':
 				if self.session_state == SessionState.Ready:
-					raise ProtocolError('dump_session_error', "No session is running")
+					raise ProtocolError('dump_session_none', "Dump session failed, no session active")
 
 				self.sendResponseCommand('dump_session_success', msg)
 
@@ -156,11 +157,11 @@ class Controller(DatagramProtocol):
 		# close database etc.
 
 	def startSession(self, msg):
-
-		self.session_state = SessionState.Busy
+		
 		self.session_args = msg
 		self.session_loop = task.LoopingCall(self.sessionTick)
 		self.session_loop.start(0.05)
+		self.session_state = SessionState.Busy
 
 	def stopSession(self, msg):
 

@@ -40,7 +40,7 @@ def initializeDetector(config):
 	if set(config) < set(('voltage', 'coarse_gain', 'fine_gain', 'num_channels', 'lld', 'uld')):
 		raise ProtocolError('detector_config_error', "Unable to initialize detector: missing configuration items")
 
-	# Create and acquire detecor
+	# Create and acquire detector
 	global detector
 	detector = DeviceFactory.createInstance(DeviceFactory.DeviceInterface.IDevice)
 	detector.open("", detector_interface_ip)		
