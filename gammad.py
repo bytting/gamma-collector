@@ -202,7 +202,7 @@ class Controller(DatagramProtocol):
 
 		self.spectrum_failures = self.spectrum_failures + 1
 		if self.spectrum_failures >= 3:
-			stopSession({})
+			self.stopSession({})
 			self.sendResponseInfo('error', "Acquiring spectrum has failed 3 times, stopping session")
 
 		self.spectrum_state = SpectrumState.Ready
