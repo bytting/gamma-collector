@@ -31,28 +31,26 @@ class GpsThread(threading.Thread):
         threading.Thread.__init__(self)
         self._stopped = event
         self._gpsd = gps(mode = WATCH_ENABLE)
-        self._latitude = 0
-        self._latitude_err = 0
-        self._longitude = 0
-        self._longitude_err = 0
-        self._altitude = 0
-        self._altitude_err = 0
-        self._track = 0
-        self._track_err = 0
-        self._speed = 0
-        self._speed_err = 0
-        self._climb = 0
-        self._climb_err = 0
+        self._latitude = 0.0
+        self._latitude_err = 0.0
+        self._longitude = 0.0
+        self._longitude_err = 0.0
+        self._altitude = 0.0
+        self._altitude_err = 0.0
+        self._track = 0.0
+        self._track_err = 0.0
+        self._speed = 0.0
+        self._speed_err = 0.0
+        self._climb = 0.0
+        self._climb_err = 0.0
         self._time = ''
 
     def run(self):
         """
         Entry point for the gps thread
         """
-
-        # Process any buffered gps signals every .3 seconds
+        # Process any buffered gps signals every 0.5 seconds
         while not self._stopped.wait(0.5):
-
             # Update our last measurement until buffer is empty
             while self._gpsd.waiting():
                 self._gpsd.next()

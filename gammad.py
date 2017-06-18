@@ -137,7 +137,7 @@ class Controller(DatagramProtocol):
                 self.sendResponseCommand('dump_session_success', msg)
 
             elif cmd == 'get_status':
-                stat = os.statvfs('/')
+                stat = os.statvfs('/') # FIXME: python2 only
                 response = {
                     'free_disk_space': stat.f_bsize * stat.f_bavail,
                     'session_running': True if self.session_state == SessionState.Busy else False,
