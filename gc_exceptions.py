@@ -19,8 +19,8 @@
 
 class ProtocolError(Exception):
 
-	def __init__(self, error_command, error_message):
-	
-		super(ProtocolError, self).__init__("%s: %s" % (error_command, error_message))
-		self.command = error_command
-		self.message = error_message
+    def __init__(self, error_command, error_message):
+    
+        super(ProtocolError, self).__init__("%s: %s" % (error_command, error_message))
+        self.command = error_command
+        self.message = error_message

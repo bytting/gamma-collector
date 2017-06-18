@@ -76,30 +76,30 @@ def main():
     try:
         if args.mode == 'config':
             msg = {
-                "command": "detector_config",
-                "detector_type": "osprey",
-                "voltage": 775,
-                "coarse_gain": 1.0,
-                "fine_gain": 1.375,
-                "num_channels": 1024,
-                "lld": 3,
-                "uld": 110
+                'command': "detector_config",
+                'detector_type': "osprey",
+                'voltage': 775,
+                'coarse_gain': 1.0,
+                'fine_gain': 1.375,
+                'num_channels': 1024,
+                'lld': 3,
+                'uld': 110
             }
             nbytes = skt.sendto(bytes(json.dumps(msg)), address)
             handleOneResponse(skt, 30, args.buffersize)
 
         elif args.mode == 'start':
-            msg = { "command": "start_session", "session_name": "Session 1", "livetime": 2 }
+            msg = { 'command': "start_session", 'session_name': "Session 1", 'livetime': 2 }
             nbytes = skt.sendto(bytes(json.dumps(msg)), address)
             handleOneResponse(skt, args.timeout, args.buffersize)
 
         elif args.mode == 'stop':
-            msg = { "command": "stop_session" }
+            msg = { 'command': "stop_session" }
             nbytes = skt.sendto(bytes(json.dumps(msg)), address)
             handleOneResponse(skt, args.timeout, args.buffersize)
 
         elif args.mode == 'dump':
-            msg = { "command": "dump_session" }
+            msg = { 'command': "dump_session" }
             nbytes = skt.sendto(bytes(json.dumps(msg)), address)
             handleResponses(skt, args.buffersize)
 

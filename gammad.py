@@ -40,172 +40,176 @@ class DetectorState: Cold, Warm = range(2)
 
 class Controller(DatagramProtocol):
 
-	def __init__(self):
+    def __init__(self):
 
-		self.client_address = None
-		self.session_args = None
-		self.session_loop = None
-		self.session_state = SessionState.Ready
-		self.spectrum_state = SpectrumState.Ready
-		self.spectrum_index = 0
-		self.spectrum_failures = 0
-		self.detector_state = DetectorState.Cold
+        self.client_address = None
+        self.session_args = None
+        self.session_loop = None
+        self.session_state = SessionState.Ready
+        self.spectrum_state = SpectrumState.Ready
+        self.spectrum_index = 0
+        self.spectrum_failures = 0
+        self.detector_state = DetectorState.Cold
 
-		self.gps_stop = threading.Event() # Event used to notify gps thread
-		self.gps = gps.GpsThread(self.gps_stop) # Create the gps thread
+        self.gps_stop = threading.Event() # Event used to notify gps thread
+        self.gps = gps.GpsThread(self.gps_stop) # Create the gps thread
 
-		self.plugin = None
+        self.plugin = None
 
-	def sendResponse(self, msg):
+    def sendResponse(self, msg):
 
-		log.msg("Send response: %s" % msg['command'])
+        log.msg("Send response: %s" % msg['command'])
 
-		if self.client_address is not None:
-			self.transport.write(bytes(json.dumps(msg)), self.client_address)
+        if self.client_address is not None:
+            self.transport.write(bytes(json.dumps(msg)), self.client_address)
 
-	def sendResponseCommand(self, command, msg):
+    def sendResponseCommand(self, command, msg):
 
-		msg['command'] = command
-		self.sendResponse(msg)
+        msg['command'] = command
+        self.sendResponse(msg)
 
-	def sendResponseInfo(self, command, info):
-		
-		msg = {'command':"%s" % command, 'message':"%s" % info}
-		self.sendResponse(msg)
+    def sendResponseInfo(self, command, info):
 
-	def loadPlugin(self, name):
+        msg = {'command':"%s" % command, 'message':"%s" % info}
+        self.sendResponse(msg)
 
-		modname = 'plugin_' + name
-		return sys.modules[modname] if modname in sys.modules else importlib.import_module(modname)
+    def loadPlugin(self, name):
 
-	def startProtocol(self):
+        modname = 'plugin_' + name
+        return sys.modules[modname] if modname in sys.modules else importlib.import_module(modname)
 
-		self.gps.start()
-		log.msg('GPS thread started')
+    def startProtocol(self):
 
-	def stopProtocol(self):
+        self.gps.start()
+        log.msg('GPS thread started')
 
-		self.gps_stop.set()
-		self.gps.join()
-		log.msg('GPS thread stopped')
+    def stopProtocol(self):
 
-	def datagramReceived(self, data, addr):
+        self.gps_stop.set()
+        self.gps.join()
+        log.msg('GPS thread stopped')
 
-		self.client_address = addr
+    def datagramReceived(self, data, addr):
 
-		try:
-			msg = json.loads(data.decode("utf-8"))
+        self.client_address = addr
 
-			log.msg("Received %s from %s" % (msg, self.client_address)) # FIXME
+        try:
+            msg = json.loads(data.decode("utf-8"))
 
-			if not 'command' in msg:
-				raise ProtocolError('error', "Invalid message");
+            log.msg("Received %s from %s" % (msg, self.client_address)) # FIXME
 
-			cmd = msg['command']
+            if not 'command' in msg:
+                raise ProtocolError('error', "Invalid message");
 
-			if cmd == 'detector_config':
-				if self.session_state == SessionState.Busy:
-					raise ProtocolError('detector_config_busy', "Detector config failed, session is active")
-				if not 'detector_type' in msg:
-					raise ProtocolError('detector_config_error', "Detector config failed, detector_type missing")
+            cmd = msg['command']
 
-				self.plugin = self.loadPlugin(msg['detector_type'])
-				self.plugin.initializeDetector(msg)
-				self.detector_state = DetectorState.Warm
-				self.sendResponseCommand('detector_config_success', msg)
+            if cmd == 'detector_config':
+                if self.session_state == SessionState.Busy:
+                    raise ProtocolError('detector_config_busy', "Detector config failed, session is active")
+                if not 'detector_type' in msg:
+                    raise ProtocolError('detector_config_error', "Detector config failed, detector_type missing")
 
-			elif cmd == 'start_session':
-				if self.session_state == SessionState.Busy:
-					raise ProtocolError('start_session_busy', "Start session failed, session is active")
+                self.plugin = self.loadPlugin(msg['detector_type'])
+                self.plugin.initializeDetector(msg)
+                self.detector_state = DetectorState.Warm
+                self.sendResponseCommand('detector_config_success', msg)
 
-				self.initializeSession(msg)
-				self.startSession(msg)
-				self.sendResponseCommand('start_session_success', msg)
+            elif cmd == 'start_session':
+                if self.session_state == SessionState.Busy:
+                    raise ProtocolError('start_session_busy', "Start session failed, session is active")
 
-			elif cmd == 'stop_session':
-				if self.session_state == SessionState.Ready:
-					raise ProtocolError('stop_session_none', "Stop session failed, no session active")
+                self.initializeSession(msg)
+                self.startSession(msg)
+                self.sendResponseCommand('start_session_success', msg)
 
-				self.stopSession(msg)
-				self.finalizeSession(msg)
-				self.sendResponseCommand('stop_session_success', msg)
+            elif cmd == 'stop_session':
+                if self.session_state == SessionState.Ready:
+                    raise ProtocolError('stop_session_none', "Stop session failed, no session active")
 
-			elif cmd == 'dump_session':
-				if self.session_state == SessionState.Ready:
-					raise ProtocolError('dump_session_none', "Dump session failed, no session active")
+                self.stopSession(msg)
+                self.finalizeSession(msg)
+                self.sendResponseCommand('stop_session_success', msg)
 
-				self.sendResponseCommand('dump_session_success', msg)
+            elif cmd == 'dump_session':
+                if self.session_state == SessionState.Ready:
+                    raise ProtocolError('dump_session_none', "Dump session failed, no session active")
 
-			else: raise Exception("Unknown command: %s" % cmd)
+                self.sendResponseCommand('dump_session_success', msg)
 
-		except ProtocolError as pe:
-			self.sendResponseInfo(pe.command, pe.message)
+            else: raise Exception("Unknown command: %s" % cmd)
 
-		except Exception as e:
-			self.sendResponseInfo('error', str(e))
+        except ProtocolError as pe:
+            self.sendResponseInfo(pe.command, pe.message)
 
-	def initializeSession(self, msg):
+        except Exception as e:
+            self.sendResponseInfo('error', str(e))
 
-		log.msg("Initializing session " + msg['session_name'])
-		self.spectrum_index = 0
-		self.spectrum_failures = 0
-		# create database etc.
+    def initializeSession(self, msg):
 
-	def finalizeSession(self, msg):
+        log.msg("Initializing session " + msg['session_name'])
+        self.spectrum_index = 0
+        self.spectrum_failures = 0
+        # create database etc.
 
-		log.msg("Finalizing session")
-		# close database etc.
+    def finalizeSession(self, msg):
 
-	def startSession(self, msg):
-		
-		self.session_args = msg
-		self.session_loop = task.LoopingCall(self.sessionTick)
-		self.session_loop.start(0.05)
-		self.session_state = SessionState.Busy
+        log.msg("Finalizing session")
+        self.spectrum_index = 0
+        self.spectrum_failures = 0
+        # close database etc.
 
-	def stopSession(self, msg):
+    def startSession(self, msg):
 
-		self.session_loop.stop()
-		self.session_state = SessionState.Ready
+        self.session_args = msg
+        self.session_loop = task.LoopingCall(self.sessionTick)
+        self.session_loop.start(0.05)
+        self.session_state = SessionState.Busy
 
-	def sessionTick(self):
+    def stopSession(self, msg):
 
-		if self.spectrum_state == SpectrumState.Ready:
-			d = threads.deferToThread(self.startSpectrum)
-			d.addCallbacks(self.handleSpectrumSuccess, self.handleSpectrumFailure)
-			self.spectrum_state = SpectrumState.Busy
+        self.session_loop.stop()
+        self.session_state = SessionState.Ready
 
-	def startSpectrum(self):
+    def sessionTick(self):
 
-		position = self.gps.position
-		velocity = self.gps.velocity
-		time = self.gps.time
+        if self.spectrum_state == SpectrumState.Ready:
+            d = threads.deferToThread(self.startSpectrum)
+            d.addCallbacks(self.handleSpectrumSuccess, self.handleSpectrumFailure)
+            self.spectrum_state = SpectrumState.Busy
 
-		msg = self.plugin.acquireSpectrum(self.session_args)
+    def startSpectrum(self):
 
-		msg.update(position)
-		msg.update(velocity)
-		msg['time'] = time
+        position = self.gps.position
+        velocity = self.gps.velocity
+        time = self.gps.time
 
-		return msg
+        msg = self.plugin.acquireSpectrum(self.session_args)
 
-	def handleSpectrumSuccess(self, msg):
+        msg.update(position)
+        msg.update(velocity)
+        msg['time'] = time
 
-		msg['index'] = self.spectrum_index
-		self.spectrum_index = self.spectrum_index + 1
-		self.sendResponse(msg)
-		self.spectrum_state = SpectrumState.Ready
+        return msg
 
-	def handleSpectrumFailure(self, err):
+    def handleSpectrumSuccess(self, msg):
 
-		self.sendResponseInfo('error', err.getErrorMessage())
+        msg['index'] = self.spectrum_index
+        self.spectrum_index = self.spectrum_index + 1
+        self.sendResponse(msg)
+        self.spectrum_state = SpectrumState.Ready
 
-		self.spectrum_failures = self.spectrum_failures + 1
-		if self.spectrum_failures >= 3:
-			self.stopSession({})
-			self.sendResponseInfo('error', "Acquiring spectrum has failed 3 times, stopping session")
+    def handleSpectrumFailure(self, err):
 
-		self.spectrum_state = SpectrumState.Ready
+        self.sendResponseInfo('error', err.getErrorMessage())
 
-reactor.listenUDP(9999, Controller())
-reactor.run()
+        self.spectrum_failures = self.spectrum_failures + 1
+        if self.spectrum_failures >= 3:
+            self.stopSession({})
+            self.finalizeSession({})
+            self.sendResponseInfo('error', "Acquiring spectrum has failed 3 times, stopping session")
+
+        self.spectrum_state = SpectrumState.Ready
+
+if __name__ == "__main__":
+    reactor.listenUDP(9999, Controller())
+    reactor.run()
