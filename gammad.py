@@ -21,7 +21,7 @@
 
 from __future__ import print_function
 
-import sys, json, threading, importlib
+import os, sys, json, threading, importlib
 
 from twisted.internet import reactor, threads, defer, task
 from twisted.internet.protocol import DatagramProtocol
@@ -135,6 +135,16 @@ class Controller(DatagramProtocol):
                     raise ProtocolError('dump_session_none', "Dump session failed, no session active")
 
                 self.sendResponseCommand('dump_session_success', msg)
+
+            elif cmd == 'get_status':
+                stat = os.statvfs('/')
+                response = {
+                    'free_disk_space': stat.f_bsize * stat.f_bavail,
+                    'session_running': True if self.session_state == SessionState.Busy else False,
+                    'session_index': self.session_index,
+                    'detector_configured': True if self.detector_state == DetectorState.Warm else False
+                }
+                self.sendResponseCommand('get_status_success', response)
 
             else: raise Exception("Unknown command: %s" % cmd)
 
