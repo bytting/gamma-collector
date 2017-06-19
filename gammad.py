@@ -141,7 +141,7 @@ class Controller(DatagramProtocol):
                 response = {
                     'free_disk_space': stat.f_bsize * stat.f_bavail,
                     'session_running': True if self.session_state == SessionState.Busy else False,
-                    'session_index': self.spectrum_index,
+                    'spectrum_index': 0 if self.session_state == SessionState.Ready else self.spectrum_index,
                     'detector_configured': True if self.detector_state == DetectorState.Warm else False
                 }
                 self.sendResponseCommand('get_status_success', response)
@@ -164,8 +164,6 @@ class Controller(DatagramProtocol):
     def finalizeSession(self, msg):
 
         log.msg("Finalizing session")
-        self.spectrum_index = 0
-        self.spectrum_failures = 0
         # close database etc.
 
     def startSession(self, msg):
