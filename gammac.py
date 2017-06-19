@@ -103,6 +103,11 @@ def main():
             nbytes = skt.sendto(bytes(json.dumps(msg)), address)
             handleResponses(skt, args.buffersize)
 
+        elif args.mode == 'status':
+            msg = { 'command': "get_status" }
+            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
+            handleOneResponse(skt, args.timeout, args.buffersize)
+
         else:
             print("Invalid options")
 

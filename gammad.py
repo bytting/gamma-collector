@@ -141,7 +141,7 @@ class Controller(DatagramProtocol):
                 response = {
                     'free_disk_space': stat.f_bsize * stat.f_bavail,
                     'session_running': True if self.session_state == SessionState.Busy else False,
-                    'session_index': self.session_index,
+                    'session_index': self.spectrum_index,
                     'detector_configured': True if self.detector_state == DetectorState.Warm else False
                 }
                 self.sendResponseCommand('get_status_success', response)
