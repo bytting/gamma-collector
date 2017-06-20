@@ -159,16 +159,15 @@ class Controller(DatagramProtocol):
     def initializeSession(self, msg):
 
         log.msg("Initializing session " + msg['session_name'])
+        self.database_connection = database.create(msg)
         self.spectrum_index = 0
         self.spectrum_failures = 0
-        self.database_connection = database.create(msg)
-        # create database etc.
 
     def finalizeSession(self, msg):
 
         log.msg("Finalizing session")
         database.close(self.database_connection)
-        # close database etc.
+        self.database_connection = None
 
     def startSession(self, msg):
 
@@ -206,7 +205,8 @@ class Controller(DatagramProtocol):
     def handleSpectrumSuccess(self, msg):
 
         msg['index'] = self.spectrum_index
-        self.spectrum_index = self.spectrum_index + 1
+        self.spectrum_index += 1
+        database.insertSpectrum(self.database_connection, msg)
         self.sendResponse(msg)
         self.spectrum_state = SpectrumState.Ready
 
@@ -214,7 +214,7 @@ class Controller(DatagramProtocol):
 
         self.sendResponseInfo('error', err.getErrorMessage())
 
-        self.spectrum_failures = self.spectrum_failures + 1
+        self.spectrum_failures += 1
         if self.spectrum_failures >= 3:
             self.stopSession({})
             self.finalizeSession({})

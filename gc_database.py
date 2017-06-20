@@ -1,3 +1,21 @@
+# Detector controller for gamma measurements
+# Copyright (C) 2016  Norwegain Radiation Protection Authority
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Authors: Dag Robole,
 
 import os, sqlite3
 
@@ -48,14 +66,25 @@ def create(msg):
     cursor = connection.cursor()
     cursor.execute(db_table_session)
     cursor.execute(db_table_spectrums)
+    cursor.execute("insert into session (name, comment, livetime, detector_data, detector_type_data) values (?, ?, ?, ?, ?)",
+           (msg['session_name'], msg['comment'], msg['livetime'], msg['detector_data'], msg['detector_type_data']))
     connection.commit()
     return connection
 
 def close(connection):
-    connection.close()
+    if connection is not None:
+        connection.close()
 
-def insertSession(msg):
-    pass
-
-def insertSpectrum(spec):
-    pass
+def insertSpectrum(connection, spec):
+    if connection is None:
+        return
+    cursor = connection.cursor()
+    cursor.execute("select id from session where name=?", (spec['session_name'], ))
+    row = cursor.fetchone()
+    cursor.execute("insert into spectrums (session_id, session_name, session_index, start_time, latitude, latitude_error, longitude, longitude_error, altitude, altitude_error, track, track_error, speed, speed_error, climb, climb_error, livetime, realtime, total_count, num_channels, channels) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+           (int(row[0]), spec['session_name'], spec['index'], spec['time'],
+               spec['latitude'], spec['latitude_error'], spec['longitude'], spec['longitude_error'],
+               spec['altitude'], spec['altitude_error'], spec['track'], spec['track_error'],
+               spec['speed'], spec['speed_error'], spec['climb'], spec['climb_error'],
+               spec['livetime'], spec['realtime'], spec['total_count'], spec['num_channels'], spec['channels']))
+    connection.commit()
