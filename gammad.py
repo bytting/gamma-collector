@@ -28,6 +28,7 @@ from twisted.internet.protocol import DatagramProtocol
 from twisted.python import log
 
 import gc_gps as gps
+import gc_database as database
 from gc_exceptions import ProtocolError
 
 log.startLogging(sys.stdout)
@@ -50,6 +51,7 @@ class Controller(DatagramProtocol):
         self.spectrum_index = 0
         self.spectrum_failures = 0
         self.detector_state = DetectorState.Cold
+        self.database_connection = None
 
         self.gps_stop = threading.Event() # Event used to notify gps thread
         self.gps = gps.GpsThread(self.gps_stop) # Create the gps thread
@@ -159,11 +161,13 @@ class Controller(DatagramProtocol):
         log.msg("Initializing session " + msg['session_name'])
         self.spectrum_index = 0
         self.spectrum_failures = 0
+        self.database_connection = database.create(msg)
         # create database etc.
 
     def finalizeSession(self, msg):
 
         log.msg("Finalizing session")
+        database.close(self.database_connection)
         # close database etc.
 
     def startSession(self, msg):
