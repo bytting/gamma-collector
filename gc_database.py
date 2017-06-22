@@ -31,8 +31,8 @@ CREATE TABLE `session` (
 );
 '''
 
-db_table_spectrums = '''
-CREATE TABLE `spectrums` (
+db_table_spectrum = '''
+CREATE TABLE `spectrum` (
 	`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
 	`session_id` INTEGER NOT NULL,
 	`session_name` TEXT NOT NULL,
@@ -66,7 +66,7 @@ def create(msg):
     connection = sqlite3.connect(dbpath)
     cursor = connection.cursor()
     cursor.execute(db_table_session)
-    cursor.execute(db_table_spectrums)
+    cursor.execute(db_table_spectrum)
     cursor.execute("insert into session (name, ip, comment, livetime, detector_data, detector_type_data) values (?, ?, ?, ?, ?, ?)",
            (msg['session_name'], msg['ip'], msg['comment'], msg['livetime'], msg['detector_data'], msg['detector_type_data']))
     connection.commit()
@@ -82,7 +82,7 @@ def insertSpectrum(connection, spec):
     cursor = connection.cursor()
     cursor.execute("select id from session where name=?", (spec['session_name'], ))
     row = cursor.fetchone()
-    cursor.execute("insert into spectrums (session_id, session_name, session_index, start_time, latitude, latitude_error, longitude, longitude_error, altitude, altitude_error, track, track_error, speed, speed_error, climb, climb_error, livetime, realtime, total_count, num_channels, channels) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    cursor.execute("insert into spectrum (session_id, session_name, session_index, start_time, latitude, latitude_error, longitude, longitude_error, altitude, altitude_error, track, track_error, speed, speed_error, climb, climb_error, livetime, realtime, total_count, num_channels, channels) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
            (int(row[0]), spec['session_name'], spec['index'], spec['time'],
                spec['latitude'], spec['latitude_error'], spec['longitude'], spec['longitude_error'],
                spec['altitude'], spec['altitude_error'], spec['track'], spec['track_error'],

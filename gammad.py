@@ -126,7 +126,9 @@ class Controller(DatagramProtocol):
 
             elif cmd == 'stop_session':
                 if self.session_state == SessionState.Ready:
-                    raise ProtocolError('stop_session_none', "Stop session failed, no session active")
+                    raise ProtocolError('stop_session_noexist', "Stop session failed, no session active")
+                if self.session_args['session_name'] != msg['session_name']:
+                    raise ProtocolError('stop_session_wrongname', "Stop session failed, wrong session name")
 
                 self.stopSession(msg)
                 self.finalizeSession(msg)
