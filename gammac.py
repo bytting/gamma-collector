@@ -44,9 +44,10 @@ def handleOneResponse(skt, timeout, bufsiz):
     except socket.error as err:
         print("Interrupted")
 
-def handleResponses(skt, bufsiz):
+def handleResponses(skt, timeout, bufsiz):
 
     global exit_dump
+    skt.settimeout(timeout)
 
     while not exit_dump:
         try:
@@ -72,58 +73,59 @@ def main():
     port = 9999 if not port else int(port)
     address = (ip, port)
 
-    skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    msg = None
+
+    if args.mode == 'config':
+        msg = {
+            'command': "detector_config",
+            'detector_type': "osprey",
+            'voltage': 775,
+            'coarse_gain': 1.0,
+            'fine_gain': 1.375,
+            'num_channels': 1024,
+            'lld': 3,
+            'uld': 110
+        }
+        args.timeout = 30
+        responseFunc = handleOneResponse
+
+    elif args.mode == 'start':
+        session_name = '{:%d%m%Y_%H%M%S}'.format(datetime.datetime.now())
+        msg = {
+            'command': "start_session",
+            'ip': ip,
+            'session_name': session_name,
+            'comment': "gammac",
+            'livetime': 2,
+            'detector_data': '{"TypeName":"NaI-2x2","CurrentHV":691,"CurrentNumChannels":1024,"Serialnumber":"CP-932","CurrentCoarseGain":1.0,"CurrentFineGain":2.647,"CurrentLivetime":2,"CurrentLLD":3,"CurrentULD":110,"EnergyCurveCoefficients":[-16.322600665547952,1.5798230485869882,2.5686852946056607E-07,-2.0953782940494292E-07]}',
+            'detector_type_data': '{"Name":"NaI-2x2","MaxNumChannels":2048,"MinHV":1,"MaxHV":1300,"GEScript":"Nai-2tom.py"}'
+        }
+        responseFunc = handleOneResponse
+
+    elif args.mode == 'stop':
+        if args.session is None:
+            print('Missing session argument')
+        else:
+            msg = { 'command': "stop_session", 'session_name': args.session }
+            responseFunc = handleOneResponse
+
+    elif args.mode == 'dump':
+        msg = { 'command': "dump_session" }
+        args.timeout = 30
+        responseFunc = handleResponses
+
+    elif args.mode == 'status':
+        msg = { 'command': "get_status" }
+        responseFunc = handleOneResponse
+
+    else:
+        print("Invalid options")
+        os.exit(1)
 
     try:
-        if args.mode == 'config':
-            msg = {
-                'command': "detector_config",
-                'detector_type': "osprey",
-                'voltage': 775,
-                'coarse_gain': 1.0,
-                'fine_gain': 1.375,
-                'num_channels': 1024,
-                'lld': 3,
-                'uld': 110
-            }
-            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
-            handleOneResponse(skt, 30, args.buffersize)
-
-        elif args.mode == 'start':
-            session_name = '{:%d%m%Y_%H%M%S}'.format(datetime.datetime.now())
-            msg = {
-                'command': "start_session",
-                'ip': ip,
-                'session_name': session_name,
-                'comment': "gammac",
-                'livetime': 2,
-                'detector_data': '{"TypeName":"NaI-2x2","CurrentHV":691,"CurrentNumChannels":1024,"Serialnumber":"CP-932","CurrentCoarseGain":1.0,"CurrentFineGain":2.647,"CurrentLivetime":2,"CurrentLLD":3,"CurrentULD":110,"EnergyCurveCoefficients":[-16.322600665547952,1.5798230485869882,2.5686852946056607E-07,-2.0953782940494292E-07]}',
-		'detector_type_data': '{"Name":"NaI-2x2","MaxNumChannels":2048,"MinHV":1,"MaxHV":1300,"GEScript":"Nai-2tom.py"}'
-            }
-            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
-            handleOneResponse(skt, args.timeout, args.buffersize)
-
-        elif args.mode == 'stop':
-            if args.session is None:
-                print('Missing session argument')
-            else:
-                msg = { 'command': "stop_session", 'session_name': args.session }
-                nbytes = skt.sendto(bytes(json.dumps(msg)), address)
-                handleOneResponse(skt, args.timeout, args.buffersize)
-
-        elif args.mode == 'dump':
-            msg = { 'command': "dump_session" }
-            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
-            handleResponses(skt, args.buffersize)
-
-        elif args.mode == 'status':
-            msg = { 'command': "get_status" }
-            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
-            handleOneResponse(skt, args.timeout, args.buffersize)
-
-        else:
-            print("Invalid options")
-
+        skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        nbytes = skt.sendto(bytes(json.dumps(msg)), address)
+        responseFunc(skt, args.timeout, args.buffersize)
     finally:
         skt.close()
 
