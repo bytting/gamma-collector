@@ -21,7 +21,7 @@
 
 from __future__ import print_function
 
-import sys, signal, socket, argparse, json
+import sys, signal, datetime, socket, argparse, json
 
 exit_dump = False
 
@@ -62,6 +62,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', help = "Possible values are: config, start, stop, dump")
+    parser.add_argument('--session', help = "Name of session to operate on")
     parser.add_argument('--ip', default = '127.0.0.1:9999', help = "IP address and port of remote peer. Default 127.0.0.1:9999")
     parser.add_argument('--timeout', type = int, default = 5, help = "Receive timeout for responses in seconds. Default 5")
     parser.add_argument('--buffersize', type = int, default = 8192, help = "Size of response buffer in bytes. Default 8192")
@@ -89,14 +90,26 @@ def main():
             handleOneResponse(skt, 30, args.buffersize)
 
         elif args.mode == 'start':
-            msg = { 'command': "start_session", 'session_name': "Session 1", 'livetime': 2 }
+            session_name = '{:%d%m%Y_%H%M%S}'.format(datetime.datetime.now())
+            msg = {
+                'command': "start_session",
+                'ip': "127.0.0.1",
+                'session_name': session_name,
+                'comment': "gammac",
+                'livetime': 2,
+                'detector_data': '{"TypeName":"NaI-2x2","CurrentHV":691,"CurrentNumChannels":1024,"Serialnumber":"CP-932","CurrentCoarseGain":1.0,"CurrentFineGain":2.647,"CurrentLivetime":2,"CurrentLLD":3,"CurrentULD":110,"EnergyCurveCoefficients":[-16.322600665547952,1.5798230485869882,2.5686852946056607E-07,-2.0953782940494292E-07]}',
+		'detector_type_data': '{"Name":"NaI-2x2","MaxNumChannels":2048,"MinHV":1,"MaxHV":1300,"GEScript":"Nai-2tom.py"}'
+            }
             nbytes = skt.sendto(bytes(json.dumps(msg)), address)
             handleOneResponse(skt, args.timeout, args.buffersize)
 
         elif args.mode == 'stop':
-            msg = { 'command': "stop_session" }
-            nbytes = skt.sendto(bytes(json.dumps(msg)), address)
-            handleOneResponse(skt, args.timeout, args.buffersize)
+            if args.session is None:
+                print('Missing session argument')
+            else:
+                msg = { 'command': "stop_session", 'session_name': args.session }
+                nbytes = skt.sendto(bytes(json.dumps(msg)), address)
+                handleOneResponse(skt, args.timeout, args.buffersize)
 
         elif args.mode == 'dump':
             msg = { 'command': "dump_session" }
