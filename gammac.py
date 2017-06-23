@@ -93,7 +93,7 @@ def main():
             session_name = '{:%d%m%Y_%H%M%S}'.format(datetime.datetime.now())
             msg = {
                 'command': "start_session",
-                'ip': "127.0.0.1",
+                'ip': ip,
                 'session_name': session_name,
                 'comment': "gammac",
                 'livetime': 2,
