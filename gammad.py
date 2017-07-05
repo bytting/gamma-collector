@@ -149,6 +149,8 @@ class Controller(DatagramProtocol):
                     'detector_configured': True if self.detector_state == DetectorState.Warm else False
                 }
                 self.sendResponseCommand('get_status_success', response)
+            elif cmd == 'sync_session':
+                pass
 
             else: raise Exception("Unknown command: %s" % cmd)
 
