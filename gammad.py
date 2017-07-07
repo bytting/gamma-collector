@@ -57,6 +57,7 @@ class Controller(DatagramProtocol):
         self.gps = gps.GpsThread(self.gps_stop) # Create the gps thread
 
         self.plugin = None
+        self.sync_list = []
 
     def sendResponse(self, msg):
 
@@ -149,8 +150,36 @@ class Controller(DatagramProtocol):
                     'detector_configured': True if self.detector_state == DetectorState.Warm else False
                 }
                 self.sendResponseCommand('get_status_success', response)
+
             elif cmd == 'sync_session':
-                pass
+                l = list(msg['indices_list'])
+                self.sync_list.extend(i for i in l if i not in self.sync_list)
+                specs = database.getSpectrums(msg['session_name'], self.sync_list, int(msg['last_index']))
+                for s in specs:
+                    spec = {
+                        'command': 'spectrum',
+                        'session_name': s[2],
+                        'index': s[3],
+                        'time': s[4],
+                        'latitude': s[5],
+                        'latitude_error': s[6],
+                        'longitude': s[7],
+                        'longitude_error': s[8],
+                        'altitude': s[9],
+                        'altitude_error': s[10],
+                        'track': s[11],
+                        'track_error': s[12],
+                        'speed': s[13],
+                        'speed_error': s[14],
+                        'climb': s[15],
+                        'climb_error': s[16],
+                        'livetime': s[17],
+                        'realtime': s[18],
+                        'total_count': s[19],
+                        'num_channels': s[20],
+                        'channels': s[21]
+                    }
+                    self.sendResponse(spec)
 
             else: raise Exception("Unknown command: %s" % cmd)
 

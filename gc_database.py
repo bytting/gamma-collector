@@ -89,3 +89,18 @@ def insertSpectrum(connection, spec):
                spec['speed'], spec['speed_error'], spec['climb'], spec['climb_error'],
                spec['livetime'], spec['realtime'], spec['total_count'], spec['num_channels'], spec['channels']))
     connection.commit()
+
+def getSpectrums(session_name, indices_list, max_index):
+    dbpath = os.path.expanduser("~/gc/")
+    if not os.path.isdir(dbpath):
+        os.makedirs(dbpath)
+    dbpath += session_name + ".db"
+    if not os.path.isfile(dbpath):
+        return None
+    conn = sqlite3.connect(dbpath)
+    cur = conn.cursor()
+    cur.execute("select * from spectrum where session_index in ({seq})".format(seq=','.join(map(str, indices_list))))
+    res = cur.fetchall()
+    conn.close()
+    return res
+
