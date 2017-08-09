@@ -99,7 +99,7 @@ def getSpectrums(session_name, indices_list, max_index):
         return None
     conn = sqlite3.connect(dbpath)
     cur = conn.cursor()
-    cur.execute("select * from spectrum where session_index in ({seq})".format(seq=','.join(map(str, indices_list))))
+    cur.execute("select * from spectrum where session_index in ({seq}) or session_index > {max}".format(seq=','.join(map(str, indices_list)), max=max_index))
     res = cur.fetchall()
     conn.close()
     return res
