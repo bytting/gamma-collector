@@ -44,12 +44,15 @@ class Controller(DatagramProtocol):
     def __init__(self):
 
         self.client_address = None
+
         self.session_args = None
         self.session_loop = None
         self.session_state = SessionState.Ready
+
         self.spectrum_state = SpectrumState.Ready
         self.spectrum_index = 0
         self.spectrum_failures = 0
+
         self.detector_state = DetectorState.Cold
         self.database_connection = None
 
@@ -57,7 +60,6 @@ class Controller(DatagramProtocol):
         self.gps = gps.GpsThread(self.gps_stop) # Create the gps thread
 
         self.plugin = None
-        self.sync_list = []
 
     def sendResponse(self, msg):
 
@@ -152,9 +154,7 @@ class Controller(DatagramProtocol):
                 self.sendResponseCommand('get_status_success', response)
 
             elif cmd == 'sync_session':
-                l = list(msg['indices_list'])
-                self.sync_list.extend(i for i in l if i not in self.sync_list)
-                specs = database.getSpectrums(msg['session_name'], self.sync_list, int(msg['last_index']))
+                specs = database.getSpectrums(msg['session_name'], list(msg['indices_list']), int(msg['last_index']))
                 for s in specs:
                     spec = {
                         'command': 'spectrum',

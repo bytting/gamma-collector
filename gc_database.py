@@ -90,7 +90,7 @@ def insertSpectrum(connection, spec):
                spec['livetime'], spec['realtime'], spec['total_count'], spec['num_channels'], spec['channels']))
     connection.commit()
 
-def getSpectrums(session_name, indices_list, max_index):
+def getSpectrums(session_name, indices_list, last_index):
     dbpath = os.path.expanduser("~/gc/")
     if not os.path.isdir(dbpath):
         os.makedirs(dbpath)
@@ -99,7 +99,7 @@ def getSpectrums(session_name, indices_list, max_index):
         return None
     conn = sqlite3.connect(dbpath)
     cur = conn.cursor()
-    cur.execute("select * from spectrum where session_index in ({seq}) or session_index > {max}".format(seq=','.join(map(str, indices_list)), max=max_index))
+    cur.execute("select * from spectrum where session_index in ({seq}) or session_index > {last}".format(seq=','.join(map(str, indices_list)), last=last_index))
     res = cur.fetchall()
     conn.close()
     return res
