@@ -70,6 +70,12 @@ def initializeDetector(config):
     detector.setParameter(ParameterCodes.Input_LLD, float(config['lld']), detector_input)
     detector.setParameter(ParameterCodes.Input_ULD, float(config['uld']), detector_input)
 
+def initializeSession(config):
+    pass
+
+def finalizeSession(config):
+    pass
+
 def acquireSpectrum(args):
 
     if set(args) < set(('session_name', 'livetime')):

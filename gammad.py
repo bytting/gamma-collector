@@ -205,6 +205,7 @@ class Controller(DatagramProtocol):
     def startSession(self, msg):
 
         self.session_args = msg
+        self.plugin.initializeSession(self.session_args)
         self.session_loop = task.LoopingCall(self.sessionTick)
         self.session_loop.start(0.05)
         self.session_state = SessionState.Busy
@@ -212,6 +213,7 @@ class Controller(DatagramProtocol):
     def stopSession(self, msg):
 
         self.session_loop.stop()
+        self.plugin.finalizeSession(msg)
         self.session_state = SessionState.Ready
 
     def sessionTick(self):
