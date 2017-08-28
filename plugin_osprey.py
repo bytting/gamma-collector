@@ -59,6 +59,9 @@ def initializeDetector(config):
         while(detector.getParameter(ParameterCodes.Input_VoltageRamping, detector_input) is True):
             time.sleep(0.4)
 
+    # Set infinite session timeout
+    detector.setParameter(ParameterCodes.Configuration_SessionTimeout, 0, detector_input)
+
     # Set gain levels and discriminators
     detector.setParameter(ParameterCodes.Input_CoarseGain, float(config['coarse_gain']), detector_input) # [1.0, 2.0, 4.0, 8.0]
     detector.setParameter(ParameterCodes.Input_FineGain, float(config['fine_gain']), detector_input) # [1.0, 5.0]
