@@ -57,23 +57,24 @@ class Controller(DatagramProtocol):
         self.database_connection = None
 
         self.gps_stop = threading.Event() # Event used to notify gps thread
-        self.gps = gps.GpsThread(self.gps_stop) # Create the gps thread
+        self.gps = gps.GpsThread(self.gps_stop)
 
         self.plugin = None
 
     def sendResponse(self, msg):
 
-        log.msg("Send response: %s" % msg['command'])
-
         if self.client_address is not None:
+            log.msg("Send response: %s" % msg['command'])
             self.transport.write(bytes(json.dumps(msg)), self.client_address)
+        else:
+            log.msg("Send response failed: Client address invalid")
 
-    def sendResponseCommand(self, command, msg):
+    def sendResponseWithCommand(self, command, msg):
 
         msg['command'] = command
         self.sendResponse(msg)
 
-    def sendResponseInfo(self, command, info):
+    def sendResponseWithInfo(self, command, info):
 
         msg = {'command':"%s" % command, 'message':"%s" % info}
         self.sendResponse(msg)
@@ -85,14 +86,14 @@ class Controller(DatagramProtocol):
 
     def startProtocol(self):
 
+        log.msg('Starting GPS thread')
         self.gps.start()
-        log.msg('GPS thread started')
 
     def stopProtocol(self):
 
+        log.msg('Stopping GPS thread')
         self.gps_stop.set()
         self.gps.join()
-        log.msg('GPS thread stopped')
 
     def datagramReceived(self, data, addr):
 
@@ -104,7 +105,7 @@ class Controller(DatagramProtocol):
             log.msg("Received %s from %s" % (msg, self.client_address)) # FIXME
 
             if not 'command' in msg:
-                raise ProtocolError('error', "Invalid message");
+                raise ProtocolError('error', "Message has no command");
 
             cmd = msg['command']
 
@@ -117,7 +118,7 @@ class Controller(DatagramProtocol):
                 self.plugin = self.loadPlugin(msg['detector_type'])
                 self.plugin.initializeDetector(msg)
                 self.detector_state = DetectorState.Warm
-                self.sendResponseCommand('detector_config_success', msg)
+                self.sendResponseWithCommand('detector_config_success', msg)
 
             elif cmd == 'start_session':
                 if self.session_state == SessionState.Busy:
@@ -125,7 +126,7 @@ class Controller(DatagramProtocol):
 
                 self.initializeSession(msg)
                 self.startSession(msg)
-                self.sendResponseCommand('start_session_success', msg)
+                self.sendResponseWithCommand('start_session_success', msg)
 
             elif cmd == 'stop_session':
                 if self.session_state == SessionState.Ready:
@@ -135,13 +136,13 @@ class Controller(DatagramProtocol):
 
                 self.stopSession(msg)
                 self.finalizeSession(msg)
-                self.sendResponseCommand('stop_session_success', msg)
+                self.sendResponseWithCommand('stop_session_success', msg)
 
             elif cmd == 'dump_session':
                 if self.session_state == SessionState.Ready:
                     raise ProtocolError('dump_session_none', "Dump session failed, no session active")
 
-                self.sendResponseCommand('dump_session_success', msg)
+                self.sendResponseWithCommand('dump_session_success', msg)
 
             elif cmd == 'get_status':
                 stat = os.statvfs('/') # FIXME: python2 only
@@ -151,7 +152,7 @@ class Controller(DatagramProtocol):
                     'spectrum_index': 0 if self.session_state == SessionState.Ready else self.spectrum_index,
                     'detector_configured': True if self.detector_state == DetectorState.Warm else False
                 }
-                self.sendResponseCommand('get_status_success', response)
+                self.sendResponseWithCommand('get_status_success', response)
 
             elif cmd == 'sync_session':
                 specs = database.getSpectrums(msg['session_name'], list(msg['indices_list']), int(msg['last_index']))
@@ -184,14 +185,18 @@ class Controller(DatagramProtocol):
             else: raise Exception("Unknown command: %s" % cmd)
 
         except ProtocolError as pe:
-            self.sendResponseInfo(pe.command, pe.message)
+            self.sendResponseWithInfo(pe.command, pe.message)
+
+        except ImportError as ie:
+            self.sendResponseWithInfo('error', "Unable to import module")
 
         except Exception as e:
-            self.sendResponseInfo('error', str(e))
+            self.sendResponseWithInfo('error', str(e))
 
     def initializeSession(self, msg):
 
         log.msg("Initializing session " + msg['session_name'])
+        self.session_args = msg
         self.spectrum_index = 0
         self.spectrum_failures = 0
         self.database_connection = database.create(msg)
@@ -206,24 +211,25 @@ class Controller(DatagramProtocol):
 
     def startSession(self, msg):
 
-        self.session_args = msg
+        log.msg("Starting session " + msg['session_name'])
         self.session_loop = task.LoopingCall(self.sessionTick)
         self.session_loop.start(0.05)
         self.session_state = SessionState.Busy
 
     def stopSession(self, msg):
 
+        log.msg("Stopping session")
         self.session_loop.stop()
         self.session_state = SessionState.Ready
 
     def sessionTick(self):
 
         if self.spectrum_state == SpectrumState.Ready:
-            d = threads.deferToThread(self.startSpectrum)
+            d = threads.deferToThread(self.aquireSpectrum)
             d.addCallbacks(self.handleSpectrumSuccess, self.handleSpectrumFailure)
             self.spectrum_state = SpectrumState.Busy
 
-    def startSpectrum(self):
+    def aquireSpectrum(self):
 
         position = self.gps.position
         velocity = self.gps.velocity
@@ -247,13 +253,13 @@ class Controller(DatagramProtocol):
 
     def handleSpectrumFailure(self, err):
 
-        self.sendResponseInfo('error', err.getErrorMessage())
+        self.sendResponseWithInfo('error', err.getErrorMessage())
 
         self.spectrum_failures += 1
         if self.spectrum_failures >= 3:
-            self.stopSession({})
-            self.finalizeSession({})
-            self.sendResponseInfo('error', "Acquiring spectrum has failed 3 times, stopping session")
+            self.stopSession(self.session_args)
+            self.finalizeSession(self.session_args)
+            self.sendResponseWithInfo('error', "Acquiring spectrum has failed 3 times, stopping session")
 
         self.spectrum_state = SpectrumState.Ready
 
