@@ -19,7 +19,7 @@
 
 import os, sqlite3
 
-db_table_session = '''
+_db_create_table_session = '''
 CREATE TABLE `session` (
 	`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
 	`name` TEXT NOT NULL UNIQUE,
@@ -31,7 +31,7 @@ CREATE TABLE `session` (
 );
 '''
 
-db_table_spectrum = '''
+_db_create_table_spectrum = '''
 CREATE TABLE `spectrum` (
 	`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
 	`session_id` INTEGER NOT NULL,
@@ -65,8 +65,8 @@ def create(msg):
     dbpath += msg["session_name"] + ".db"
     connection = sqlite3.connect(dbpath)
     cursor = connection.cursor()
-    cursor.execute(db_table_session)
-    cursor.execute(db_table_spectrum)
+    cursor.execute(_db_create_table_session)
+    cursor.execute(_db_create_table_spectrum)
     cursor.execute("insert into session (name, ip, comment, livetime, detector_data, detector_type_data) values (?, ?, ?, ?, ?, ?)",
            (msg['session_name'], msg['ip'], msg['comment'], msg['livetime'], msg['detector_data'], msg['detector_type_data']))
     connection.commit()
@@ -90,7 +90,7 @@ def insertSpectrum(connection, spec):
                spec['livetime'], spec['realtime'], spec['total_count'], spec['num_channels'], spec['channels']))
     connection.commit()
 
-def getSpectrums(session_name, indices_list, last_index):
+def getSyncSpectrums(session_name, indices_list, last_index):
     dbpath = os.path.expanduser("~/gc/")
     if not os.path.isdir(dbpath):
         os.makedirs(dbpath)

@@ -155,7 +155,7 @@ class Controller(DatagramProtocol):
                 self.sendResponseWithCommand('get_status_success', response)
 
             elif cmd == 'sync_session':
-                specs = database.getSpectrums(msg['session_name'], list(msg['indices_list']), int(msg['last_index']))
+                specs = database.getSyncSpectrums(msg['session_name'], list(msg['indices_list']), int(msg['last_index']))
                 for s in specs:
                     spec = {
                         'command': 'spectrum',
