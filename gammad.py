@@ -192,20 +192,21 @@ class Controller(DatagramProtocol):
     def initializeSession(self, msg):
 
         log.msg("Initializing session " + msg['session_name'])
-        self.database_connection = database.create(msg)
         self.spectrum_index = 0
         self.spectrum_failures = 0
+        self.database_connection = database.create(msg)
+        self.plugin.initializeSession(msg)
 
     def finalizeSession(self, msg):
 
         log.msg("Finalizing session")
+        self.plugin.finalizeSession(msg)
         database.close(self.database_connection)
         self.database_connection = None
 
     def startSession(self, msg):
 
         self.session_args = msg
-        self.plugin.initializeSession(self.session_args)
         self.session_loop = task.LoopingCall(self.sessionTick)
         self.session_loop.start(0.05)
         self.session_state = SessionState.Busy
@@ -213,7 +214,6 @@ class Controller(DatagramProtocol):
     def stopSession(self, msg):
 
         self.session_loop.stop()
-        self.plugin.finalizeSession(msg)
         self.session_state = SessionState.Ready
 
     def sessionTick(self):
