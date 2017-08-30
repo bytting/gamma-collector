@@ -115,7 +115,7 @@ class Controller(DatagramProtocol):
                 if not 'detector_type' in msg:
                     raise ProtocolError('detector_config_error', "Detector config failed, detector_type missing")
 
-                self.plugin = self.loadPlugin(msg['detector_type'])
+                self.plugin = self.loadPlugin(msg['plugin_name'])
                 self.plugin.initializeDetector(msg)
                 self.detector_state = DetectorState.Warm
                 self.sendResponseWithCommand('detector_config_success', msg)

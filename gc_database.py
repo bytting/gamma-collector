@@ -26,8 +26,7 @@ CREATE TABLE `session` (
 	`ip` TEXT NOT NULL,
 	`comment` TEXT,
 	`livetime` REAL NOT NULL,
-	`detector_data` TEXT NOT NULL,
-	`detector_type_data` TEXT NOT NULL
+	`detector_data` TEXT NOT NULL
 );
 '''
 
@@ -67,8 +66,8 @@ def create(msg):
     cursor = connection.cursor()
     cursor.execute(_db_create_table_session)
     cursor.execute(_db_create_table_spectrum)
-    cursor.execute("insert into session (name, ip, comment, livetime, detector_data, detector_type_data) values (?, ?, ?, ?, ?, ?)",
-           (msg['session_name'], msg['ip'], msg['comment'], msg['livetime'], msg['detector_data'], msg['detector_type_data']))
+    cursor.execute("insert into session (name, ip, comment, livetime, detector_data) values (?, ?, ?, ?, ?)",
+           (msg['session_name'], msg['ip'], msg['comment'], msg['livetime'], msg['detector_data']))
     connection.commit()
     return connection
 
