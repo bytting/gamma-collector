@@ -45,6 +45,9 @@ class Controller(DatagramProtocol):
 
         self.client_address = None
 
+        self.detector_state = DetectorState.Cold
+        self.detector_data = None
+
         self.session_args = None
         self.session_loop = None
         self.session_state = SessionState.Ready
@@ -53,7 +56,6 @@ class Controller(DatagramProtocol):
         self.spectrum_index = 0
         self.spectrum_failures = 0
 
-        self.detector_state = DetectorState.Cold
         self.database_connection = None
 
         self.gps_stop = threading.Event() # Event used to notify gps thread
@@ -112,13 +114,16 @@ class Controller(DatagramProtocol):
             if cmd == 'detector_config':
                 if self.session_state == SessionState.Busy:
                     raise ProtocolError('detector_config_busy', "Detector config failed, session is active")
-                if not 'detector_type' in msg:
-                    raise ProtocolError('detector_config_error', "Detector config failed, detector_type missing")
 
-                self.plugin = self.loadPlugin(msg['plugin_name'])
-                self.plugin.initializeDetector(msg)
+                self.detector_data = msg['detector_data']
+
+                if not 'plugin_name' in self.detector_data:
+                    raise ProtocolError('detector_config_error', "Detector config failed, plugin_name missing")
+
+                self.plugin = self.loadPlugin(self.detector_data['plugin_name'])
+                self.plugin.initializeDetector(self.detector_data)
                 self.detector_state = DetectorState.Warm
-                self.sendResponseWithCommand('detector_config_success', msg)
+                self.sendResponseWithCommand('detector_config_success', self.detector_data)
 
             elif cmd == 'start_session':
                 if self.session_state == SessionState.Busy:
@@ -185,12 +190,15 @@ class Controller(DatagramProtocol):
             else: raise Exception("Unknown command: %s" % cmd)
 
         except ProtocolError as pe:
+            log.msg("ProtocolError: %s" % (str(pe)))
             self.sendResponseWithInfo(pe.command, pe.message)
 
         except ImportError as ie:
+            log.msg("ImportError: %s" % (str(ie)))
             self.sendResponseWithInfo('error', "Unable to import module")
 
         except Exception as e:
+            log.msg("Exception: %s" % (str(e)))
             self.sendResponseWithInfo('error', str(e))
 
     def initializeSession(self, msg):
@@ -199,7 +207,7 @@ class Controller(DatagramProtocol):
         self.session_args = msg
         self.spectrum_index = 0
         self.spectrum_failures = 0
-        self.database_connection = database.create(msg)
+        self.database_connection = database.create(self.detector_data, msg)
         self.plugin.initializeSession(msg)
 
     def finalizeSession(self, msg):

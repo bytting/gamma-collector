@@ -17,7 +17,7 @@
 #
 # Authors: Dag Robole,
 
-import os, sqlite3
+import os, json, sqlite3
 
 _db_create_table_session = '''
 CREATE TABLE `session` (
@@ -57,7 +57,7 @@ CREATE TABLE `spectrum` (
 );
 '''
 
-def create(msg):
+def create(detector_data, msg):
     dbpath = os.path.expanduser("~/gc/")
     if not os.path.isdir(dbpath):
         os.makedirs(dbpath)
@@ -67,7 +67,7 @@ def create(msg):
     cursor.execute(_db_create_table_session)
     cursor.execute(_db_create_table_spectrum)
     cursor.execute("insert into session (name, ip, comment, livetime, detector_data) values (?, ?, ?, ?, ?)",
-           (msg['session_name'], msg['ip'], msg['comment'], msg['livetime'], msg['detector_data']))
+           (msg['session_name'], msg['ip'], msg['comment'], msg['livetime'], json.dumps(detector_data)))
     connection.commit()
     return connection
 
