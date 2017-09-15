@@ -161,32 +161,31 @@ class Controller(DatagramProtocol):
 
             elif cmd == 'sync_session':
                 specs = database.getSyncSpectrums(msg['session_name'], list(msg['indices_list']), int(msg['last_index']))
-                if specs is not None:
-                    for s in specs:
-                        spec = {
-                            'command': 'spectrum',
-                            'session_name': s[2],
-                            'index': s[3],
-                            'time': s[4],
-                            'latitude': s[5],
-                            'latitude_error': s[6],
-                            'longitude': s[7],
-                            'longitude_error': s[8],
-                            'altitude': s[9],
-                            'altitude_error': s[10],
-                            'track': s[11],
-                            'track_error': s[12],
-                            'speed': s[13],
-                            'speed_error': s[14],
-                            'climb': s[15],
-                            'climb_error': s[16],
-                            'livetime': s[17],
-                            'realtime': s[18],
-                            'total_count': s[19],
-                            'num_channels': s[20],
-                            'channels': s[21]
-                        }
-                        self.sendResponse(spec)
+                for s in specs:
+                    spec = {
+                        'command': 'spectrum',
+                        'session_name': s[2],
+                        'index': s[3],
+                        'time': s[4],
+                        'latitude': s[5],
+                        'latitude_error': s[6],
+                        'longitude': s[7],
+                        'longitude_error': s[8],
+                        'altitude': s[9],
+                        'altitude_error': s[10],
+                        'track': s[11],
+                        'track_error': s[12],
+                        'speed': s[13],
+                        'speed_error': s[14],
+                        'climb': s[15],
+                        'climb_error': s[16],
+                        'livetime': s[17],
+                        'realtime': s[18],
+                        'total_count': s[19],
+                        'num_channels': s[20],
+                        'channels': s[21]
+                    }
+                    self.sendResponse(spec)
 
             else: raise Exception("Unknown command: %s" % cmd)
 

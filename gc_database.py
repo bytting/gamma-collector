@@ -102,3 +102,5 @@ def getSyncSpectrums(session_name, indices_list, last_index):
     cur.execute("select * from spectrum where session_index in ({seq}) or session_index > {last}".format(seq=','.join(map(str, indices_list)), last=last_index))
     res = cur.fetchall()
     conn.close()
+    return res
+
