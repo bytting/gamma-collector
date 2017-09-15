@@ -19,6 +19,7 @@
 
 import os, json, sqlite3
 from gc_exceptions import ProtocolError
+from twisted.python import log
 
 _db_create_table_session = '''
 CREATE TABLE `session` (
@@ -103,4 +104,7 @@ def getSyncSpectrums(session_name, indices_list, last_index):
     res = cur.fetchall()
     conn.close()
     return res
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5e57af6b655fd7e4cd51f2abd47f891652d7c82b
