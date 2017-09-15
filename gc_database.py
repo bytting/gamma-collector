@@ -104,7 +104,4 @@ def getSyncSpectrums(session_name, indices_list, last_index):
     res = cur.fetchall()
     conn.close()
     return res
-<<<<<<< HEAD
 
-=======
->>>>>>> 5e57af6b655fd7e4cd51f2abd47f891652d7c82b
