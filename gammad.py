@@ -147,6 +147,7 @@ class Controller(DatagramProtocol):
                 if self.session_state == SessionState.Ready:
                     raise ProtocolError('dump_session_none', "Dump session failed, no session active")
 
+                msg["message"] = "dumping session to " + str(self.client_address)
                 self.sendResponseWithCommand('dump_session_success', msg)
 
             elif cmd == 'get_status':
