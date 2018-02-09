@@ -20,11 +20,15 @@
 import os
 from ctypes import *
 
+TOTAL_RESULT_CHANNELS = 4096
+
 so = CDLL('/usr/lib/libSpectrometerDriver.so')
 
 so.kr_Initialise.argtypes = [c_void_p, c_void_p]
+so.kr_Initialise.restype = c_int
 so.kr_Initialise(c_void_p(None), c_void_p(None))
 
+did = c_uint(0)
 so.kr_GetNextDetector.argtypes = [c_uint]
 so.kr_GetNextDetector.restype = c_uint
 did = so.kr_GetNextDetector(c_uint(0))
@@ -38,22 +42,22 @@ else:
 print "Run detector for 5 seconds"
 so.kr_BeginDataAcquisition.argtypes = [c_uint, c_uint, c_uint]
 so.kr_BeginDataAcquisition.restype = c_int
-so.kr_BeginDataAcquisition(c_uint(did), c_uint(5000), c_uint(0))
+so.kr_BeginDataAcquisition(did, c_uint(5000), c_uint(0))
 
 so.kr_IsAcquiringData.argtypes = [c_uint]
 so.kr_IsAcquiringData.restype = c_int
-while so.kr_IsAcquiringData(c_uint(did)):
+while so.kr_IsAcquiringData(did):
     pass
 
 total_count = c_uint(0)
-spectrum = (c_uint * 4096)()
+spectrum = (c_uint * TOTAL_RESULT_CHANNELS)()
 so.kr_GetAcquiredData.argtypes = [c_uint, POINTER(c_uint), POINTER(c_uint), POINTER(c_uint), POINTER(c_uint)]
 so.kr_GetAcquiredData.restype = c_int
-so.kr_GetAcquiredData(c_uint(did), spectrum, byref(total_count), None, None)
+so.kr_GetAcquiredData(did, spectrum, byref(total_count), None, None)
 
 print "Total count: %d\n" % (total_count.value)
 print "Spectrum:\n"
-for i in range(4096):
+for i in range(TOTAL_RESULT_CHANNELS):
     print "%d " % (spectrum[i]),
 print
 
