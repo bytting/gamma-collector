@@ -127,7 +127,7 @@ if __name__ == "__main__":
         config = {'serialnumber':'GR1A', 'voltage':700, 'lld':32}
         initializeDetector(config)
 
-        args = {'session_name':'01012000_121212', 'livetime':5000}
+        args = {'session_name':'01012000_121212', 'livetime':2}
         msg = acquireSpectrum(args)
 
         print msg
