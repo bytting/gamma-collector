@@ -94,6 +94,8 @@ class Controller(DatagramProtocol):
     def stopProtocol(self):
 
         log.msg('Stopping GPS thread')
+        if self.plugin != None:
+            self.plugin.finalizeModule()
         self.gps_stop.set()
         self.gps.join()
 
@@ -121,6 +123,7 @@ class Controller(DatagramProtocol):
                     raise ProtocolError('detector_config_error', "Detector config failed, plugin_name missing")
 
                 self.plugin = self.loadPlugin(self.detector_data['plugin_name'])
+                self.plugin.initializePlugin()
                 self.plugin.initializeDetector(self.detector_data)
                 self.detector_state = DetectorState.Warm
                 self.sendResponseWithCommand('detector_config_success', self.detector_data)

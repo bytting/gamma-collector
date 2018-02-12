@@ -70,10 +70,10 @@ def initializeDetector(config):
 
     global _did
 
-    if set(config) < set(('serialname', 'voltage', 'lld')):
+    if set(config) < set(('serialnumber', 'voltage', 'lld')):
         raise ProtocolError('detector_config_error', "Unable to initialize detector: missing configuration items")
 
-    _setDetector(config['serialname'])
+    _setDetector(config['serialnumber'])
 
 def finalizeDetector(config):
     pass
@@ -94,8 +94,9 @@ def acquireSpectrum(args):
     if _did == 0:
         raise ProtocolError('error', "Unable to acquire spectrum: Invalid detector id")
 
+    lt = int(args['livetime'] * 1000.0)
     _so.kr_ClearAcquiredData(_did)
-    _so.kr_BeginDataAcquisition(_did, c_uint(0), c_uint(args['livetime']))
+    _so.kr_BeginDataAcquisition(_did, c_uint(0), c_uint(lt))
 
     while _so.kr_IsAcquiringData(_did):
         pass
@@ -113,8 +114,8 @@ def acquireSpectrum(args):
         'channels': ' '.join(map(str, spectrum)),
         'num_channels': TOTAL_RESULT_CHANNELS,
         'total_count': int(total_count.value),
-        'livetime': int(livetime.value),
-        'realtime': int(realtime.value)
+        'livetime': float(livetime.value),
+        'realtime': float(realtime.value)
     }
 
     return msg
@@ -123,7 +124,7 @@ if __name__ == "__main__":
 
     try:
         initializePlugin()
-        config = {'serialname':'GR1A', 'voltage':700, 'lld':32}
+        config = {'serialnumber':'GR1A', 'voltage':700, 'lld':32}
         initializeDetector(config)
 
         args = {'session_name':'01012000_121212', 'livetime':5000}
