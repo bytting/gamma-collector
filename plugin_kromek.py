@@ -114,8 +114,8 @@ def acquireSpectrum(args):
         'channels': ' '.join(map(str, spectrum)),
         'num_channels': TOTAL_RESULT_CHANNELS,
         'total_count': int(total_count.value),
-        'livetime': float(livetime.value),
-        'realtime': float(realtime.value)
+        'livetime': float(livetime.value) * 1000.0,
+        'realtime': float(realtime.value) * 1000.0
     }
 
     return msg
