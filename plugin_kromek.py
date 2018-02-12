@@ -17,48 +17,121 @@
 #
 # Authors: Dag Robole,
 
-import os
+import sys
 from ctypes import *
+from gc_exceptions import ProtocolError
 
 TOTAL_RESULT_CHANNELS = 4096
 
-so = CDLL('/usr/lib/libSpectrometerDriver.so')
+_so = CDLL('/usr/lib/libSpectrometerDriver.so')
 
-so.kr_Initialise.argtypes = [c_void_p, c_void_p]
-so.kr_Initialise.restype = c_int
-so.kr_Initialise(c_void_p(None), c_void_p(None))
+_so.kr_Initialise.argtypes = [c_void_p, c_void_p]
+_so.kr_Initialise.restype = c_int
+_so.kr_GetNextDetector.argtypes = [c_uint]
+_so.kr_GetNextDetector.restype = c_uint
+_so.kr_GetDeviceSerial.argtypes = [c_uint, POINTER(c_char), c_int, POINTER(c_int)]
+_so.kr_GetDeviceSerial.restype = c_int
+_so.kr_ClearAcquiredData.argtypes = [c_uint]
+_so.kr_ClearAcquiredData.restype = c_int
+_so.kr_BeginDataAcquisition.argtypes = [c_uint, c_uint, c_uint]
+_so.kr_BeginDataAcquisition.restype = c_int
+_so.kr_IsAcquiringData.argtypes = [c_uint]
+_so.kr_IsAcquiringData.restype = c_int
+_so.kr_GetAcquiredData.argtypes = [c_uint, POINTER(c_uint), POINTER(c_uint), POINTER(c_uint), POINTER(c_uint)]
+_so.kr_GetAcquiredData.restype = c_int
 
-did = c_uint(0)
-so.kr_GetNextDetector.argtypes = [c_uint]
-so.kr_GetNextDetector.restype = c_uint
-did = so.kr_GetNextDetector(c_uint(0))
-if did == 0:
-    print "No detector found"
-    so.kr_Destruct()
-    os.exit(1)
-else:
-    print "Using detector %d\n" % (did)
+_did = c_uint(0)
 
-print "Run detector for 5 seconds"
-so.kr_BeginDataAcquisition.argtypes = [c_uint, c_uint, c_uint]
-so.kr_BeginDataAcquisition.restype = c_int
-so.kr_BeginDataAcquisition(did, c_uint(5000), c_uint(0))
+def _setDetector(serialname):
+    global _did
+    _did = c_uint(0)
 
-so.kr_IsAcquiringData.argtypes = [c_uint]
-so.kr_IsAcquiringData.restype = c_int
-while so.kr_IsAcquiringData(did):
+    serial = (c_char * 200)()
+    serial_size = c_int(0)
+    while True:
+        _did = _so.kr_GetNextDetector(_did)
+        if _did == 0:
+            break
+
+        _so.kr_GetDeviceName(_did, serial, 200, byref(serial_size))
+        if serial.value == serialname:
+            print "Using detector %s\n" % (serial.value)
+            return
+
+    raise ProtocolError('detector_config_error', "Detector not found: %s" % (serialname))
+
+def initializePlugin():
+    _so.kr_Initialise(c_void_p(None), c_void_p(None))
+
+def finalizePlugin():
+    _so.kr_Destruct()
+
+def initializeDetector(config):
+
+    global _did
+
+    if set(config) < set(('serialname', 'voltage', 'lld')):
+        raise ProtocolError('detector_config_error', "Unable to initialize detector: missing configuration items")
+
+    _setDetector(config['serialname'])
+
+def finalizeDetector(config):
     pass
 
-total_count = c_uint(0)
-spectrum = (c_uint * TOTAL_RESULT_CHANNELS)()
-so.kr_GetAcquiredData.argtypes = [c_uint, POINTER(c_uint), POINTER(c_uint), POINTER(c_uint), POINTER(c_uint)]
-so.kr_GetAcquiredData.restype = c_int
-so.kr_GetAcquiredData(did, spectrum, byref(total_count), None, None)
+def initializeSession(config):
+    pass
 
-print "Total count: %d\n" % (total_count.value)
-print "Spectrum:\n"
-for i in range(TOTAL_RESULT_CHANNELS):
-    print "%d " % (spectrum[i]),
-print
+def finalizeSession(config):
+    pass
 
-so.kr_Destruct()
+def acquireSpectrum(args):
+
+    global _did
+
+    if set(args) < set(('session_name', 'livetime')):
+        raise ProtocolError('error', "Unable to acquire spectrum: Missing arguments")
+
+    if _did == 0:
+        raise ProtocolError('error', "Unable to acquire spectrum: Invalid detector id")
+
+    _so.kr_ClearAcquiredData(_did)
+    _so.kr_BeginDataAcquisition(_did, c_uint(0), c_uint(args['livetime']))
+
+    while _so.kr_IsAcquiringData(_did):
+        pass
+
+    total_count = c_uint(0)
+    livetime = c_uint(0)
+    realtime = c_uint(0)
+    spectrum = (c_uint * TOTAL_RESULT_CHANNELS)()
+    _so.kr_GetAcquiredData(_did, spectrum, byref(total_count), byref(realtime), byref(livetime))
+
+    # Add spectrum data to response message
+    msg = {
+        'command': 'spectrum',
+        'session_name': args['session_name'],
+        'channels': ' '.join(map(str, spectrum)),
+        'num_channels': TOTAL_RESULT_CHANNELS,
+        'total_count': int(total_count.value),
+        'livetime': int(livetime.value),
+        'realtime': int(realtime.value)
+    }
+
+    return msg
+
+if __name__ == "__main__":
+
+    try:
+        initializePlugin()
+        config = {'serialname':'GR1A', 'voltage':700, 'lld':32}
+        initializeDetector(config)
+
+        args = {'session_name':'01012000_121212', 'livetime':5000}
+        msg = acquireSpectrum(args)
+
+        print msg
+        finalizePlugin()
+    except ProtocolError as err:
+        finalizePlugin()
+        print "Exception: ", err
+

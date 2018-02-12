@@ -35,6 +35,12 @@ _detector_group = 1
 _detector_input = 1
 _detector = None
 
+def initializePlugin():
+	pass
+
+def finalizePlugin():
+	pass
+
 def initializeDetector(config):
 
     if set(config) < set(('voltage', 'coarse_gain', 'fine_gain', 'num_channels', 'lld', 'uld')):
@@ -69,6 +75,9 @@ def initializeDetector(config):
     _detector.setParameter(ParameterCodes.Input_LLDmode, 1, _detector_input) # Set manual LLD mode
     _detector.setParameter(ParameterCodes.Input_LLD, float(config['lld']), _detector_input)
     _detector.setParameter(ParameterCodes.Input_ULD, float(config['uld']), _detector_input)
+
+def finalizeDetector(config):
+	pass
 
 def initializeSession(config):
     pass
