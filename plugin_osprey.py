@@ -77,7 +77,7 @@ def initializeDetector(config):
     _detector.setParameter(ParameterCodes.Input_ULD, float(config['uld']), _detector_input)
 
 def finalizeDetector(config):
-	pass
+    pass
 
 def initializeSession(config):
     pass

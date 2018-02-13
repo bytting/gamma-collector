@@ -67,7 +67,6 @@ def finalizePlugin():
     _so.kr_Destruct()
 
 def initializeDetector(config):
-
     global _did
 
     if set(config) < set(('serialnumber', 'voltage', 'lld')):
@@ -85,7 +84,6 @@ def finalizeSession(config):
     pass
 
 def acquireSpectrum(args):
-
     global _did
 
     if set(args) < set(('session_name', 'livetime')):
@@ -121,7 +119,6 @@ def acquireSpectrum(args):
     return msg
 
 if __name__ == "__main__":
-
     try:
         initializePlugin()
         config = {'serialnumber':'GR1A', 'voltage':700, 'lld':32}
