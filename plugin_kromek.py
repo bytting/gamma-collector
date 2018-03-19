@@ -128,8 +128,9 @@ if __name__ == "__main__":
         msg = acquireSpectrum(args)
 
         print msg
-        finalizePlugin()
+
     except ProtocolError as err:
-        finalizePlugin()
         print "Exception: ", err
+    finally:
+        finalizePlugin()
 
