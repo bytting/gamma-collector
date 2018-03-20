@@ -1,13 +1,13 @@
 # gamma-collector
 
-Detector controller running on Raspberry Pi (archlinuxarm), controlling a gamma detector and a GPS device.
+    Detector controller running on Raspberry Pi (archlinuxarm), controlling a gamma detector and a GPS device.
 
-Acquisitions and position are merged, saved to sqlite database and transferred over a UDP connection to Gamma Analyzer.
+    Acquisitions and position are merged, saved to sqlite database and transferred over a UDP connection to Gamma Analyzer.
 
-This software is part of a drone project at Norwegian Radiation Protection Authority (NRPA)
+    This software is part of a drone project at Norwegian Radiation Protection Authority (NRPA)
 
 ### Status
-   Development
+    Development
 
 ### Dependencies
 1. Python 2
