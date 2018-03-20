@@ -1,10 +1,10 @@
 # gamma-collector
 
-    Detector controller running on Raspberry Pi (archlinuxarm), controlling a gamma detector and a GPS device.
+Detector controller running on Raspberry Pi (archlinuxarm), controlling a gamma detector and a GPS device.
 
-    Acquisitions and position are merged, saved to sqlite database and transferred over a UDP connection to Gamma Analyzer.
+Acquisitions and position are merged, saved to sqlite database and transferred over a UDP connection to Gamma Analyzer.
 
-    This software is part of a drone project at Norwegian Radiation Protection Authority (NRPA)
+This software is part of a drone project at Norwegian Radiation Protection Authority (NRPA)
 
 ### Status
     Development
@@ -50,7 +50,7 @@ this may need to be changed when running on other systems than ArchlinuxARM.
 
 # plugin_osprey
 
-    Plugin used to acquire measurements from a Osprey gamma detector
+Plugin used to acquire measurements from a Osprey gamma detector
 
 ### Status
     Development
@@ -67,7 +67,7 @@ The Osprey API is also expected to be available at IP address 10.0.1.4.
 
 # plugin_kromek:
 
-    Plugin used to acquire measurements from a Kromek detector
+Plugin used to acquire measurements from a Kromek detector
 
 ### Status
     Development
