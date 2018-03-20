@@ -128,3 +128,20 @@ def acquireSpectrum(args):
     }
 
     return msg
+
+if __name__ == "__main__":
+    try:
+        initializePlugin()
+        config = {'voltage':650, 'coarse_gain':1.0, 'fine_gain':1.15, 'num_channels':1024, 'lld':3, 'uld':110}
+        initializeDetector(config)
+
+        args = {'session_name':'01012001_121212', 'livetime':2}
+        msg = acquireSpectrum(args)
+
+        print msg
+
+    except ProtocolError as err:
+        print "Exception", err
+    finally:
+        finalizePlugin()
+
