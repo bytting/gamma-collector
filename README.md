@@ -12,8 +12,7 @@ This software is part of a drone project at Norwegian Radiation Protection Autho
 ### Dependencies
 1. Python 2
 2. Python Twisted
-3. Canberra Osprey SDK V1.0.1 (Proprietary)
-4. gpsd
+3. gpsd
 
 ### Installing
 
@@ -40,10 +39,6 @@ so make sure to modify them accordingly.
 
 	Copy this file to ``/etc/gpsd`` to configure the gps.
 
-The Osprey SDK contains a "DataTypes" directory with the python modules used to manage a Canberra Osprey detector.
-For the osprey plugin to work, copy this directory to the parent directory of the gamma-collector source, 
-so that plugin_osprey.py will find it as "../DataTypes"
-The Osprey API is also expected to be available at IP address 10.0.1.4.
 
 Given a successful configuration, gammad.py will be listening on UDP port 9999 after booting up the system.
 
@@ -51,3 +46,37 @@ Sessions will be stored locally under the directory ``$(HOME)/gc``
 
 Note that the python scripts gammad.py and gammac.py contains Shebang references to python2,
 this may need to be changed when running on other systems than ArchlinuxARM.
+
+
+# plugin_osprey
+
+    Plugin used to acquire measurements from a Osprey gamma detector
+
+### Status
+    Development
+
+### Dependencies
+1. Canberra Osprey SDK V1.0.1 (Proprietary)
+
+### Installing
+
+The Osprey SDK contains a "DataTypes" directory with the python modules used to manage a Canberra Osprey detector.
+For the osprey plugin to work, copy this directory to the parent directory of the gamma-collector source, 
+so that plugin_osprey.py will find it as "../DataTypes"
+The Osprey API is also expected to be available at IP address 10.0.1.4.
+
+# plugin_kromek:
+
+    Plugin used to acquire measurements from a Kromek detector
+
+### Status
+    Development
+
+### Dependencies
+1. Kromek Spectrometer USB Software Driver (Proprietary)
+
+### Installing
+
+Build and load the kromekusb.ko module as described in the software package.
+Build and install the KromekDriver.so and the SpectrometerDriver.so libraries as described in the software package.
+Install the 90-kromek.rules file that comes with the software package to auto generate the device files when hot-plugging Kromek detectors.
