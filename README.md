@@ -65,7 +65,7 @@ For the osprey plugin to work, copy this directory to the parent directory of th
 so that plugin_osprey.py will find it as "../DataTypes"
 The Osprey API is also expected to be available at IP address 10.0.1.4.
 
-# plugin_kromek:
+# plugin_kromek
 
 Plugin used to acquire measurements from a Kromek detector
 
