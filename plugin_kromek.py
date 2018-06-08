@@ -17,7 +17,7 @@
 #
 # Authors: Dag Robole,
 
-import sys
+import sys, time
 from ctypes import *
 from gc_exceptions import ProtocolError
 
@@ -94,10 +94,11 @@ def acquireSpectrum(args):
 
     lt = int(args['livetime'] * 1000.0)
     _so.kr_ClearAcquiredData(_did)
+    time.sleep(0.1)
     _so.kr_BeginDataAcquisition(_did, c_uint(0), c_uint(lt))
 
     while _so.kr_IsAcquiringData(_did):
-        pass
+        time.sleep(0.1)
 
     total_count = c_uint(0)
     livetime = c_uint(0)

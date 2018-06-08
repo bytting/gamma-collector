@@ -95,7 +95,7 @@ class Controller(DatagramProtocol):
 
         log.msg('Stopping GPS thread')
         if self.plugin != None:
-            self.plugin.finalizeModule()
+            self.plugin.finalizePlugin()
         self.gps_stop.set()
         self.gps.join()
 
@@ -261,6 +261,7 @@ class Controller(DatagramProtocol):
         self.spectrum_index += 1
         database.insertSpectrum(self.database_connection, msg)
         self.sendResponse(msg)
+        log.msg("spectrum: %s" % msg['channels'])
         self.spectrum_state = SpectrumState.Ready
 
     def handleSpectrumFailure(self, err):
