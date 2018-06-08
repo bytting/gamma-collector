@@ -37,8 +37,8 @@ _so.kr_BeginDataAcquisition.argtypes = [c_uint, c_uint, c_uint]
 _so.kr_BeginDataAcquisition.restype = c_int
 _so.kr_IsAcquiringData.argtypes = [c_uint]
 _so.kr_IsAcquiringData.restype = c_int
-_so.kr_GetAcquiredData.argtypes = [c_uint, POINTER(c_uint), POINTER(c_uint), POINTER(c_uint), POINTER(c_uint)]
-_so.kr_GetAcquiredData.restype = c_int
+_so.kr_GetAcquiredDataEx.argtypes = [c_uint, POINTER(c_uint), POINTER(c_uint), POINTER(c_uint), POINTER(c_uint), c_uint]
+_so.kr_GetAcquiredDataEx.restype = c_int
 
 _did = c_uint(0)
 
@@ -93,8 +93,7 @@ def acquireSpectrum(args):
         raise ProtocolError('error', "Unable to acquire spectrum: Invalid detector id")
 
     lt = int(args['livetime'] * 1000.0)
-    _so.kr_ClearAcquiredData(_did)
-    time.sleep(0.1)
+    # _so.kr_ClearAcquiredData(_did)
     _so.kr_BeginDataAcquisition(_did, c_uint(0), c_uint(lt))
 
     while _so.kr_IsAcquiringData(_did):
@@ -104,7 +103,8 @@ def acquireSpectrum(args):
     livetime = c_uint(0)
     realtime = c_uint(0)
     spectrum = (c_uint * TOTAL_RESULT_CHANNELS)()
-    _so.kr_GetAcquiredData(_did, spectrum, byref(total_count), byref(realtime), byref(livetime))
+    flags = c_uint(1)
+    _so.kr_GetAcquiredDataEx(_did, spectrum, byref(total_count), byref(realtime), byref(livetime), flags)
 
     # Add spectrum data to response message
     msg = {

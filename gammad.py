@@ -83,6 +83,8 @@ class Controller(DatagramProtocol):
 
     def loadPlugin(self, name):
 
+        if self.plugin != None:
+            self.plugin.finalizePlugin()
         modname = 'plugin_' + name
         return sys.modules[modname] if modname in sys.modules else importlib.import_module(modname)
 
